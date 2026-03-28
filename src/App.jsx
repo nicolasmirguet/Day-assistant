@@ -2,39 +2,22 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 // ═══ PERSISTENCE ═══
 const STORAGE_KEY = "dsl-tracker-data";
-function saveData(clients) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 2, ts: Date.now(), clients })); } catch {}
-}
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) { const d = JSON.parse(raw); if (d?.clients) return d.clients; }
-  } catch {}
-  return null;
-}
+const SCRATCH_KEY = "dsl-scratch-notes";
+const DAY_SNAP_KEY = "dsl-day-snapshot";
+function saveData(clients) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 3, ts: Date.now(), clients })); } catch {} }
+function loadData() { try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) { const d = JSON.parse(raw); if (d?.clients) return d.clients; } } catch {} return null; }
+function saveScratch(n) { try { localStorage.setItem(SCRATCH_KEY, JSON.stringify(n)); } catch {} }
+function loadScratch() { try { const r = localStorage.getItem(SCRATCH_KEY); if (r) return JSON.parse(r); } catch {} return {}; }
+function saveDaySnap(s) { try { localStorage.setItem(DAY_SNAP_KEY, JSON.stringify(s)); } catch {} }
+function loadDaySnap() { try { const r = localStorage.getItem(DAY_SNAP_KEY); if (r) return JSON.parse(r); } catch {} return null; }
 
-// ═══ CLIPBOARD HELPER ═══
-function copyText(text) {
-  if (navigator.clipboard?.writeText) {
-    return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
-  }
-  return fallbackCopy(text);
-}
-function fallbackCopy(text) {
-  const ta = document.createElement("textarea");
-  ta.value = text; ta.style.cssText = "position:fixed;left:-9999px;top:-9999px";
-  document.body.appendChild(ta); ta.select();
-  try { document.execCommand("copy"); } catch {}
-  document.body.removeChild(ta);
-  return Promise.resolve();
-}
+// ═══ CLIPBOARD ═══
+function copyText(text) { if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text).catch(() => fbCopy(text)); return fbCopy(text); }
+function fbCopy(text) { const ta = document.createElement("textarea"); ta.value = text; ta.style.cssText = "position:fixed;left:-9999px"; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch {} document.body.removeChild(ta); return Promise.resolve(); }
 
 // ═══ DATA ═══
 let uid = 1;
-const tk = (text, pri, tag, subs = []) => ({
-  id: uid++, text, priority: pri, tag, status: "Pending", outcome: "",
-  subtasks: subs.map(t => ({ id: uid++, text: t, done: false })),
-});
+const tk = (text, pri, tag, subs = []) => ({ id: uid++, text, priority: pri, tag, status: "Pending", outcome: "", subtasks: subs.map(t => ({ id: uid++, text: t, done: false })) });
 
 const DEFAULT_CLIENTS = [
   { name: "Timothy Boyle", priority: "urgent", tags: ["Budget Alert","Action Item"], note: "Plan 10% overspending (51% elapsed, 61% spent). Prioritise essential tasks only.", tasks: [
@@ -71,7 +54,7 @@ const DEFAULT_CLIENTS = [
     tk("Call Con Karoglidis — PRC check-in & confirm first physio session completed","normal","Action Item",["Confirm first Ambition Health physio session occurred (was due 22/03)","Schedule next PRC check-in for April 2026 (due 30/03)"]),
     tk("PRC monitoring and goal progress review (due 27/03)","normal","Due This Week"),
   ], aiNotes: [] },
-  { name: "Dean Edwards", priority: "high", tags: ["Overdue","Due This Week"], note: "SDA COC variation ref 31507360 lodged with NDIA. New providers: Anna Hooker (speech) and Alissa Larrescy (dietician).", tasks: [
+  { name: "Dean Edwards", priority: "high", tags: ["Overdue","Due This Week"], note: "SDA COC variation ref 31507360 lodged with NDIA.", tasks: [
     tk("Arrange first dietician appointment with Alissa Larrescy / HLA (due 23/03)","high","Overdue"),
     tk("Follow up NDIA on SDA variation ref 31507360 — contact Ellen (NPST) if no response by 27/03","high","Due This Week"),
     tk("Schedule quarterly review meeting with Anna Hooker (Connect2Care, speech pathology) — end March","medium","Due This Week"),
@@ -91,7 +74,7 @@ const DEFAULT_CLIENTS = [
     tk("Pursue NDIA response to COC ref 31355744 — 1:1 support (due 28/03)","high","Due This Week"),
     tk("Budget review — L2 SC at 75% utilised. 12 weeks to plan end","high","Budget Alert",["Confirm plan review preparation underway"]),
   ], aiNotes: [] },
-  { name: "Eva Marie Kjellberg", priority: "high", tags: ["Overdue","Due This Week"], note: "New SW Nicki Abebe (9D Care) replacing Ayse. Salt Foundation and Kunan involved.", tasks: [
+  { name: "Eva Marie Kjellberg", priority: "high", tags: ["Overdue","Due This Week"], note: "New SW Nicki Abebe (9D Care) replacing Ayse.", tasks: [
     tk("Confirm new support worker Nicki Abebe commencement date with 9D Care (due 20/03)","high","Overdue"),
     tk("Transition meeting — Nicki Abebe, Salt Foundation, Kunan case worker (due 27/03)","high","Due This Week"),
     tk("Monitor support continuity in initial weeks of new worker appointment","medium","Monitoring"),
@@ -116,7 +99,7 @@ const DEFAULT_CLIENTS = [
     tk("Call Kylie Brewer — PRC check-in","medium","Action Item",["PRC budget at 51% — discuss if pace is appropriate"]),
     tk("Budget monitor — PRC at 51% utilised","medium","Budget Alert"),
   ], aiNotes: [] },
-  { name: "Matthew Dixon", priority: "high", tags: ["Check-in Due","Budget Alert"], note: "Physio showing strong improvement. Angliss Hospital appointments. Goals tab update ongoing.", tasks: [
+  { name: "Matthew Dixon", priority: "high", tags: ["Check-in Due","Budget Alert"], note: "Physio showing strong improvement. Angliss Hospital appointments.", tasks: [
     tk("Check-in due in 5 days — L2 SC at 52% budget","high","Check-in Due",["Confirm physio has resumed (was due week of 16/03)","Continue researching community participation options","Goals tab update in Astalty still in progress"]),
     tk("Budget monitor — L2 SC at 52% utilised","medium","Budget Alert"),
   ], aiNotes: [] },
@@ -125,17 +108,17 @@ const DEFAULT_CLIENTS = [
     tk("Respond to Harley Willmott's revised Mable agreement request — confirm with Mischa","medium","Overdue"),
     tk("Routine monitoring check-in","normal","Monitoring"),
   ], aiNotes: [] },
-  { name: "Rohan Van Prooyen", priority: "urgent", tags: ["Budget Alert","Monitoring"], note: "Plan ends April 2026. BSP report overdue. Visual schedule implementation in progress. AT budget $1,430 remaining.", tasks: [
+  { name: "Rohan Van Prooyen", priority: "urgent", tags: ["Budget Alert","Monitoring"], note: "Plan ends April 2026. BSP report overdue. AT budget $1,430 remaining.", tasks: [
     tk("Budget review URGENT — L2 SC at 77%. Plan ends April 2026","urgent","Budget Alert",["Complete budget review in Astalty urgently","Review and reallocate supports as needed","Confirm plan review preparation is in progress"]),
     tk("OT Ivy meet and greet at Cadenza — with Alisa & Shane Van Prooyen and Nikita Brockmuller (OnPsych)","high","Monitoring",["Confirm Ivy is available (was on leave ~15 days)","Visual schedule finalisation pending staff input from Prakash (Cadenza House Manager)","Nintendo Switch AT purchase — awaiting family confirmation ($1,430 remaining)","BSP end-of-plan progress report was due 20/03 — complete ASAP"]),
   ], aiNotes: [] },
-  { name: "Sean Kenyon", priority: "high", tags: ["New Client"], note: "Plan started ~1 week ago. All SAs expiring 19/03 — confirm renewals. Physio with Denis Riabov confirmed.", tasks: [
-    tk("New client onboarding — complete initial checklist","high","New Client",["Initial Assessment","Consent Form","Bank Form (if applicable)","Plan Manager Setup — liaise with Plan Assure","Physio with Denis Riabov (DSL) — confirmed ✓","Relevant Service Referrals","Track funds in Astalty budget tool","Add NDIS goals in Astalty goals tool","Confirm all SAs renewed (expiry was 19/03)"]),
+  { name: "Sean Kenyon", priority: "high", tags: ["New Client"], note: "Plan started ~1 week ago. All SAs expiring 19/03 — confirm renewals.", tasks: [
+    tk("New client onboarding — complete initial checklist","high","New Client",["Initial Assessment","Consent Form","Bank Form (if applicable)","Plan Manager Setup — liaise with Plan Assure","Physio with Denis Riabov (DSL) — confirmed","Relevant Service Referrals","Track funds in Astalty budget tool","Add NDIS goals in Astalty goals tool","Confirm all SAs renewed (expiry was 19/03)"]),
   ], aiNotes: [] },
   { name: "Stuart Nolte", priority: "high", tags: ["Check-in Due"], note: "PRC monitoring. Plan end Aug 2026, $9,171.48 remaining.", tasks: [
-    tk("Check-in due in 5 days — PRC session also overdue (was due week of 16/03)","high","Check-in Due",["Send updated PRC progress summary for review and acknowledgement","Confirm updated PRC schedule Mar–May 2026"]),
+    tk("Check-in due in 5 days — PRC session also overdue (was due week of 16/03)","high","Check-in Due",["Send updated PRC progress summary for review and acknowledgement","Confirm updated PRC schedule Mar-May 2026"]),
   ], aiNotes: [] },
-  { name: "Terry Biviano", priority: "high", tags: ["Overdue"], note: "Plan extended to 17 Feb 2027, SC funding $2,414.62. Duplicate payment credit with Invictus Health resolved.", tasks: [
+  { name: "Terry Biviano", priority: "high", tags: ["Overdue"], note: "Plan extended to 17 Feb 2027, SC funding $2,414.62. Duplicate payment credit resolved.", tasks: [
     tk("Arrange appointment with Invictus Health (Hannes) — use duplicate payment credit (due 25/03)","high","Overdue"),
     tk("Follow up with Elizabeth Biviano (sister/carer) re community support needs (due 24/03)","medium","Overdue"),
     tk("Monitor new NDIS plan implementation and provider transition","medium","Monitoring"),
@@ -145,7 +128,6 @@ const DEFAULT_CLIENTS = [
   ], aiNotes: [] },
 ];
 
-// Ensure uid is past all default IDs
 uid = 500;
 
 const COLS = [
@@ -158,12 +140,9 @@ const COLS = [
 const STATUSES = ["Pending","In Progress","Done","No Answer","Follow-Up Required"];
 const PRI = { urgent:"#f87171", high:"#fb923c", medium:"#fbbf24", normal:"#6b7189" };
 const TAG_C = {
-  "Overdue":["rgba(248,113,113,0.1)","#fb7185"],
-  "Budget Alert":["rgba(248,113,113,0.08)","#f87171"],
-  "Check-in Due":["rgba(167,139,250,0.1)","#a78bfa"],
-  "New Client":["rgba(52,211,153,0.1)","#34d399"],
-  "Action Item":["rgba(251,146,60,0.1)","#fb923c"],
-  "Monitoring":["rgba(45,212,191,0.1)","#2dd4bf"],
+  "Overdue":["rgba(248,113,113,0.1)","#fb7185"], "Budget Alert":["rgba(248,113,113,0.08)","#f87171"],
+  "Check-in Due":["rgba(167,139,250,0.1)","#a78bfa"], "New Client":["rgba(52,211,153,0.1)","#34d399"],
+  "Action Item":["rgba(251,146,60,0.1)","#fb923c"], "Monitoring":["rgba(45,212,191,0.1)","#2dd4bf"],
   "Due This Week":["rgba(251,191,36,0.1)","#fbbf24"],
 };
 
@@ -178,29 +157,21 @@ function importJSON(file, cb) {
   r.onload = e => { try { const d = JSON.parse(e.target.result); if (d.clients) cb(d.clients); } catch { alert("Invalid JSON"); } };
   r.readAsText(file);
 }
-
 function genWeeklySummary(clients) {
   const now = new Date(), ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1);
   const fmt = d => d.toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"});
   const L = [`WEEKLY SUMMARY — ${fmt(ws)} to ${fmt(now)}`, "Support Coordinator: Nico | Disability Support Link", ""];
   const secs = [
-    { t:"COMPLETED",i:"✓",f:t=>t.status==="Done" },
-    { t:"IN PROGRESS",i:"…",f:t=>t.status==="In Progress" },
+    { t:"COMPLETED",i:"✓",f:t=>t.status==="Done" }, { t:"IN PROGRESS",i:"…",f:t=>t.status==="In Progress" },
     { t:"FOLLOW-UP / NO ANSWER",i:"⚑",f:t=>t.status==="Follow-Up Required"||t.status==="No Answer" },
     { t:"OVERDUE / URGENT",i:"⚠",f:t=>(t.tag==="Overdue"||t.priority==="urgent")&&t.status!=="Done" },
     { t:"PENDING",i:"○",f:t=>t.status==="Pending" },
   ];
-  secs.forEach(s => {
-    const m = []; clients.forEach(c => { const ts = c.tasks.filter(s.f); if (ts.length) m.push({n:c.name,ts}); });
-    if (m.length) { L.push(`═══ ${s.t} ═══`); m.forEach(x => { L.push(`  ${x.n}`); x.ts.forEach(t => { L.push(`    ${s.i} ${t.text}`); if(t.outcome) L.push(`      → ${t.outcome}`); }); }); L.push(""); }
-  });
+  secs.forEach(s => { const m = []; clients.forEach(c => { const ts = c.tasks.filter(s.f); if (ts.length) m.push({n:c.name,ts}); }); if (m.length) { L.push(`═══ ${s.t} ═══`); m.forEach(x => { L.push(`  ${x.n}`); x.ts.forEach(t => { L.push(`    ${s.i} ${t.text}`); if(t.outcome) L.push(`      → ${t.outcome}`); }); }); L.push(""); } });
   const a = clients.flatMap(c=>c.tasks);
-  L.push("───────────────────");
-  L.push(`Total: ${a.length} tasks across ${clients.length} clients`);
-  L.push(`Done: ${a.filter(t=>t.status==="Done").length} | In Progress: ${a.filter(t=>t.status==="In Progress").length} | Overdue: ${a.filter(t=>t.tag==="Overdue"&&t.status!=="Done").length} | Urgent: ${a.filter(t=>t.priority==="urgent"&&t.status!=="Done").length}`);
+  L.push("───────────────────", `Total: ${a.length} tasks across ${clients.length} clients`, `Done: ${a.filter(t=>t.status==="Done").length} | In Progress: ${a.filter(t=>t.status==="In Progress").length} | Overdue: ${a.filter(t=>t.tag==="Overdue"&&t.status!=="Done").length} | Urgent: ${a.filter(t=>t.priority==="urgent"&&t.status!=="Done").length}`);
   return L.join("\n");
 }
-
 function genCaseNotes(clients) {
   const fmt = d => d.toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"});
   const now = new Date(), L = [];
@@ -208,17 +179,50 @@ function genCaseNotes(clients) {
     const active = c.tasks.filter(t=>t.status==="Done"||t.status==="In Progress"||t.status==="Follow-Up Required");
     if (!active.length) return;
     const mins = active.length<=2?15:active.length<=4?30:active.length<=6?45:60;
-    L.push("═".repeat(50), `DATE: ${fmt(now)}`, `CLIENT: ${c.name}`, "SERVICE TYPE: Support Coordination", "");
-    L.push("CONTACT/ACTION:");
+    L.push("═".repeat(50), `DATE: ${fmt(now)}`, `CLIENT: ${c.name}`, "SERVICE TYPE: Support Coordination", "", "CONTACT/ACTION:");
     active.forEach(t => L.push(`  - [${t.status}] ${t.text}`));
     L.push("","OUTCOME:");
-    const withOutcome = active.filter(t=>t.outcome);
-    if (withOutcome.length) withOutcome.forEach(t => L.push(`  - ${t.outcome}`));
-    else L.push("  - [To be recorded]");
+    const wo = active.filter(t=>t.outcome); if (wo.length) wo.forEach(t => L.push(`  - ${t.outcome}`)); else L.push("  - [To be recorded]");
     L.push("","FOLLOW-UP:");
-    const fu = c.tasks.filter(t=>t.status!=="Done");
-    if (fu.length) fu.forEach(t => L.push(`  - ${t.text}`)); else L.push("  - Nil");
+    const fu = c.tasks.filter(t=>t.status!=="Done"); if (fu.length) fu.forEach(t => L.push(`  - ${t.text}`)); else L.push("  - Nil");
     L.push("",`TIME: ${mins} minutes`,`PREPARED BY: Nico — Disability Support Link`,"");
+  });
+  return L.join("\n");
+}
+
+// ═══ DAY SNAPSHOT ═══
+function createDaySnapshot(clients) {
+  const snap = { timestamp: new Date().toISOString(), tasks: {} };
+  clients.forEach(c => c.tasks.forEach(t => { snap.tasks[t.id] = { status: t.status, text: t.text, client: c.name, outcome: t.outcome || "", subDone: t.subtasks.filter(s=>s.done).length, subTotal: t.subtasks.length }; }));
+  return snap;
+}
+function computeDayDiff(snapshot, clients) {
+  if (!snapshot) return [];
+  const changes = [], now = {};
+  clients.forEach(c => c.tasks.forEach(t => { now[t.id] = { status: t.status, text: t.text, client: c.name, outcome: t.outcome || "", subDone: t.subtasks.filter(s=>s.done).length }; }));
+  Object.keys(snapshot.tasks).forEach(id => {
+    const old = snapshot.tasks[id], cur = now[id];
+    if (!cur) { changes.push({ type:"removed", client:old.client, text:old.text }); return; }
+    if (old.status !== cur.status) changes.push({ type:"status", client:cur.client, text:cur.text, from:old.status, to:cur.status });
+    if (cur.outcome && cur.outcome !== old.outcome) changes.push({ type:"outcome", client:cur.client, text:cur.text, outcome:cur.outcome });
+    if (cur.subDone > old.subDone) changes.push({ type:"subtasks", client:cur.client, text:cur.text, completed:cur.subDone - old.subDone });
+  });
+  Object.keys(now).forEach(id => { if (!snapshot.tasks[id]) changes.push({ type:"added", client:now[id].client, text:now[id].text }); });
+  return changes;
+}
+function formatDiffText(changes) {
+  if (!changes.length) return "";
+  const L = ["TASK EVOLUTION TODAY:", ""], byC = {};
+  changes.forEach(c => { if (!byC[c.client]) byC[c.client] = []; byC[c.client].push(c); });
+  Object.entries(byC).forEach(([client, cs]) => {
+    L.push(`  ${client}:`);
+    cs.forEach(c => {
+      if (c.type==="status") L.push(`    → ${c.text}: ${c.from} → ${c.to}`);
+      else if (c.type==="outcome") L.push(`    → Outcome recorded: ${c.text}`);
+      else if (c.type==="subtasks") L.push(`    → ${c.completed} subtask(s) completed: ${c.text}`);
+      else if (c.type==="added") L.push(`    + New task: ${c.text}`);
+      else if (c.type==="removed") L.push(`    ✕ Removed: ${c.text}`);
+    });
   });
   return L.join("\n");
 }
@@ -232,20 +236,20 @@ export default function App() {
   const [tab, setTab] = useState("kanban");
   const [collapsed, setCollapsed] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [addingTask, setAddingTask] = useState(false);
   const [toast, setToast] = useState(null);
+  const [daySnap, setDaySnap] = useState(() => loadDaySnap());
+  const [scratchNotes, setScratchNotesRaw] = useState(() => loadScratch());
 
-  // Auto-save on every change
-  const setClients = useCallback((updater) => {
-    setClientsRaw(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      saveData(next);
-      return next;
-    });
-  }, []);
+  const setScratchNotes = useCallback((u) => { setScratchNotesRaw(p => { const n = typeof u === "function" ? u(p) : u; saveScratch(n); return n; }); }, []);
+  const setClients = useCallback((u) => { setClientsRaw(p => { const n = typeof u === "function" ? u(p) : u; saveData(n); return n; }); }, []);
 
   const client = clients.find(c => c.name === sel);
   const upd = u => setClients(cs => cs.map(c => c.name === u.name ? u : c));
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2500); };
+
+  const startDay = () => { const s = createDaySnapshot(clients); setDaySnap(s); saveDaySnap(s); showToast("Day started — snapshot saved"); };
+  const endDay = () => { setDaySnap(null); localStorage.removeItem(DAY_SNAP_KEY); showToast("Day ended — snapshot cleared"); };
 
   const filtered = clients
     .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()))
@@ -255,58 +259,53 @@ export default function App() {
       if (filter==="Active") return c.tasks.some(t=>t.status!=="Done");
       return true;
     });
-
   const all = clients.flatMap(c=>c.tasks);
-  const doneN = all.filter(t=>t.status==="Done").length;
-  const urgN = all.filter(t=>t.priority==="urgent"&&t.status!=="Done").length;
+  const doneN = all.filter(t=>t.status==="Done").length, urgN = all.filter(t=>t.priority==="urgent"&&t.status!=="Done").length;
 
-  const handleImport = useCallback(e => {
-    const f = e.target.files?.[0];
-    if (f) importJSON(f, d => { setClients(d); showToast("Imported!"); });
-    e.target.value = "";
-  }, [setClients]);
-
-  const resetData = () => { if (window.confirm("Reset all data to defaults? This cannot be undone.")) { setClients(DEFAULT_CLIENTS); setSel(DEFAULT_CLIENTS[0].name); showToast("Data reset"); } };
+  const handleImport = useCallback(e => { const f = e.target.files?.[0]; if (f) importJSON(f, d => { setClients(d); showToast("Imported!"); }); e.target.value = ""; }, [setClients]);
+  const resetData = () => { if (window.confirm("Reset all data to defaults?")) { setClients(DEFAULT_CLIENTS); setSel(DEFAULT_CLIENTS[0].name); showToast("Data reset"); } };
 
   return (
     <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:"#0f1117", fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif", color:"#e8eaf0" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-        *{margin:0;padding:0;box-sizing:border-box}
-        ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a2d3e;border-radius:10px}
-        button{font-family:inherit;cursor:pointer} select{font-family:inherit} input{font-family:inherit} textarea{font-family:inherit}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}
-      </style>
+        *{margin:0;padding:0;box-sizing:border-box} ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a2d3e;border-radius:10px}
+        button{font-family:inherit;cursor:pointer} select,input,textarea{font-family:inherit} @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
       {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:99, padding:"14px 24px", borderRadius:12, fontSize:15, fontWeight:600, background:"rgba(52,211,153,0.15)", color:"#34d399", border:"1px solid rgba(52,211,153,0.3)" }}>{toast}</div>}
 
       {/* SIDEBAR */}
       <div style={{ display:"flex", flexDirection:"column", width:collapsed?80:340, background:"#131520", borderRight:"1px solid #1e2030", flexShrink:0, transition:"width 0.25s ease" }}>
         <div style={{ display:"flex", alignItems:"center", gap:14, padding:"20px", borderBottom:"1px solid #1e2030" }}>
-          {!collapsed && <>
-            <div style={{ width:44, height:44, borderRadius:12, background:"linear-gradient(135deg,#5b8def,#a78bfa)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>◈</div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:20, fontWeight:800, letterSpacing:"-0.02em" }}>DSL Tracker</div>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
-                <span style={{ fontSize:14, color:"#6b7189" }}>Support Coordination</span>
-                <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:99, background:"rgba(52,211,153,0.12)", color:"#34d399" }}>
-                  <span style={{ width:7, height:7, borderRadius:4, background:"#34d399", display:"inline-block" }}/>Saved
-                </span>
-              </div>
-            </div>
-          </>}
+          {!collapsed && <><div style={{ width:44, height:44, borderRadius:12, background:"linear-gradient(135deg,#5b8def,#a78bfa)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>◈</div>
+            <div style={{ flex:1 }}><div style={{ fontSize:20, fontWeight:800, letterSpacing:"-0.02em" }}>DSL Tracker</div>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}><span style={{ fontSize:14, color:"#6b7189" }}>Support Coordination</span>
+                <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:99, background:"rgba(52,211,153,0.12)", color:"#34d399" }}><span style={{ width:7, height:7, borderRadius:4, background:"#34d399", display:"inline-block" }}/>Saved</span></div></div></>}
           <button onClick={() => setCollapsed(!collapsed)} style={{ background:"none", border:"none", color:"#6b7189", padding:8, fontSize:18 }}>{collapsed?"▸":"◂"}</button>
         </div>
 
         {!collapsed && <>
-          <div style={{ padding:"16px 20px", borderBottom:"1px solid #1e2030", display:"flex", gap:10, flexWrap:"wrap" }}>
+          {/* DAY TRACKER */}
+          <div style={{ padding:"12px 20px", borderBottom:"1px solid #1e2030" }}>
+            {!daySnap ? (
+              <button onClick={startDay} style={{ width:"100%", padding:"12px 0", borderRadius:12, fontSize:15, fontWeight:700, background:"linear-gradient(135deg,#34d399,#2dd4bf)", color:"#0f1117", border:"none" }}>▶ Start Day</button>
+            ) : (
+              <div>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ width:8, height:8, borderRadius:4, background:"#34d399", animation:"pulse 2s infinite" }}/><span style={{ fontSize:13, fontWeight:600, color:"#34d399" }}>Day Active</span></div>
+                  <span style={{ fontSize:12, color:"#4a4f65" }}>{new Date(daySnap.timestamp).toLocaleTimeString("en-AU",{hour:"2-digit",minute:"2-digit"})}</span>
+                </div>
+                <button onClick={endDay} style={{ width:"100%", padding:"10px 0", borderRadius:10, fontSize:14, fontWeight:600, background:"rgba(248,113,113,0.1)", color:"#f87171", border:"1px solid rgba(248,113,113,0.2)" }}>■ End Day</button>
+              </div>
+            )}
+          </div>
+
+          <div style={{ padding:"12px 20px", borderBottom:"1px solid #1e2030", display:"flex", gap:10, flexWrap:"wrap" }}>
             <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(52,211,153,0.12)", color:"#34d399" }}>✓ {doneN}/{all.length}</span>
             {urgN>0 && <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(248,113,113,0.12)", color:"#f87171" }}>⚠ {urgN}</span>}
           </div>
           <div style={{ padding:"16px 20px" }}>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients..." style={{ width:"100%", fontSize:16, padding:"14px 18px", borderRadius:12, background:"#1a1d2e", border:"1px solid #252839", color:"#e8eaf0", outline:"none" }}/>
             <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
-              {["All","Urgent","Overdue","Active"].map(f => (
-                <button key={f} onClick={() => setFilter(f)} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:10, background:filter===f?"rgba(91,141,239,0.15)":"transparent", color:filter===f?"#5b8def":"#6b7189", border:filter===f?"1px solid rgba(91,141,239,0.3)":"1px solid transparent" }}>{f}</button>
-              ))}
+              {["All","Urgent","Overdue","Active"].map(f => (<button key={f} onClick={() => setFilter(f)} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:10, background:filter===f?"rgba(91,141,239,0.15)":"transparent", color:filter===f?"#5b8def":"#6b7189", border:filter===f?"1px solid rgba(91,141,239,0.3)":"1px solid transparent" }}>{f}</button>))}
             </div>
           </div>
           <div style={{ flex:1, overflowY:"auto", padding:"4px 12px" }}>
@@ -316,20 +315,10 @@ export default function App() {
               return (
                 <div key={c.name} onClick={() => setSel(c.name)} style={{ padding:"14px 16px", borderRadius:14, marginBottom:4, cursor:"pointer", background:isSel?"rgba(91,141,239,0.1)":"transparent", borderLeft:isSel?"3px solid #5b8def":"3px solid transparent", transition:"all 0.15s" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-                    <div style={{ width:44, height:44, borderRadius:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, flexShrink:0, background:hasUrg?"rgba(248,113,113,0.15)":"rgba(91,141,239,0.12)", color:hasUrg?"#f87171":"#5b8def" }}>
-                      {c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}
-                    </div>
+                    <div style={{ width:44, height:44, borderRadius:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, flexShrink:0, background:hasUrg?"rgba(248,113,113,0.15)":"rgba(91,141,239,0.12)", color:hasUrg?"#f87171":"#5b8def" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <span style={{ fontSize:16, fontWeight:600, color:isSel?"#e8eaf0":"#9ca3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.name}</span>
-                        {hasUrg && <span style={{ fontSize:14, color:"#f87171" }}>⚠</span>}
-                      </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:8 }}>
-                        <div style={{ flex:1, height:6, borderRadius:3, background:"#252839", overflow:"hidden" }}>
-                          <div style={{ height:"100%", borderRadius:3, width:`${pct}%`, background:pct===100?"#34d399":"#5b8def", transition:"width 0.3s" }}/>
-                        </div>
-                        <span style={{ fontSize:14, color:"#6b7189" }}>{dn}/{tot}</span>
-                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:16, fontWeight:600, color:isSel?"#e8eaf0":"#9ca3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.name}</span>{hasUrg && <span style={{ fontSize:14, color:"#f87171" }}>⚠</span>}</div>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:8 }}><div style={{ flex:1, height:6, borderRadius:3, background:"#252839", overflow:"hidden" }}><div style={{ height:"100%", borderRadius:3, width:`${pct}%`, background:pct===100?"#34d399":"#5b8def", transition:"width 0.3s" }}/></div><span style={{ fontSize:14, color:"#6b7189" }}>{dn}/{tot}</span></div>
                     </div>
                   </div>
                 </div>
@@ -345,13 +334,7 @@ export default function App() {
             </div>
           </div>
         </>}
-        {collapsed && <div style={{ flex:1, overflowY:"auto", padding:"12px 0" }}>
-          {filtered.map(c => <div key={c.name} onClick={() => setSel(c.name)} title={c.name} style={{ display:"flex", justifyContent:"center", padding:"8px 0", cursor:"pointer" }}>
-            <div style={{ width:48, height:48, borderRadius:24, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, background:c.name===sel?"rgba(91,141,239,0.2)":"rgba(91,141,239,0.08)", color:c.name===sel?"#5b8def":"#6b7189", border:c.name===sel?"3px solid #5b8def":"3px solid transparent" }}>
-              {c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}
-            </div>
-          </div>)}
-        </div>}
+        {collapsed && <div style={{ flex:1, overflowY:"auto", padding:"12px 0" }}>{filtered.map(c => <div key={c.name} onClick={() => setSel(c.name)} title={c.name} style={{ display:"flex", justifyContent:"center", padding:"8px 0", cursor:"pointer" }}><div style={{ width:48, height:48, borderRadius:24, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, background:c.name===sel?"rgba(91,141,239,0.2)":"rgba(91,141,239,0.08)", color:c.name===sel?"#5b8def":"#6b7189", border:c.name===sel?"3px solid #5b8def":"3px solid transparent" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div></div>)}</div>}
       </div>
 
       {/* MAIN */}
@@ -359,23 +342,22 @@ export default function App() {
         {client ? <>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 32px", background:"#131520", borderBottom:"1px solid #1e2030", flexWrap:"wrap", gap:12 }}>
             <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-              <div style={{ width:52, height:52, borderRadius:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, background:client.priority==="urgent"?"rgba(248,113,113,0.15)":"rgba(91,141,239,0.12)", color:client.priority==="urgent"?"#f87171":"#5b8def" }}>
-                {client.name.split(" ").map(n=>n[0]).join("").slice(0,2)}
-              </div>
+              <div style={{ width:52, height:52, borderRadius:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, background:client.priority==="urgent"?"rgba(248,113,113,0.15)":"rgba(91,141,239,0.12)", color:client.priority==="urgent"?"#f87171":"#5b8def" }}>{client.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
               <div><div style={{ fontSize:22, fontWeight:700 }}>{client.name}</div><div style={{ fontSize:15, color:"#6b7189", marginTop:4, maxWidth:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{client.note}</div></div>
             </div>
-            <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+            <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
               {client.tags.map(t => { const [bg,clr]=TAG_C[t]||["rgba(107,113,137,0.1)","#6b7189"]; return <span key={t} style={{ fontSize:14, fontWeight:600, padding:"6px 16px", borderRadius:99, background:bg, color:clr }}>{t}</span>; })}
+              <button onClick={() => setAddingTask(true)} style={{ fontSize:16, fontWeight:700, padding:"10px 28px", borderRadius:12, background:"linear-gradient(135deg,#5b8def,#a78bfa)", color:"white", border:"none", marginLeft:8, boxShadow:"0 2px 12px rgba(91,141,239,0.3)" }}>+ New Task</button>
             </div>
           </div>
           <div style={{ display:"flex", gap:6, padding:"14px 32px", borderBottom:"1px solid #1e2030", background:"#0f1117", flexWrap:"wrap" }}>
-            {[{id:"kanban",l:"◫ Tasks"},{id:"notes",l:"✦ AI Notes"},{id:"weekly",l:"📋 Weekly Summary"},{id:"summary",l:"⊞ Client Summary"}].map(t => (
+            {[{id:"kanban",l:"◫ Tasks"},{id:"notes",l:"✎ Notes"},{id:"weekly",l:"📋 Weekly Summary"},{id:"summary",l:"⊞ Client Summary"}].map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} style={{ fontSize:16, fontWeight:600, padding:"10px 22px", borderRadius:10, background:tab===t.id?"rgba(91,141,239,0.12)":"transparent", color:tab===t.id?"#5b8def":"#6b7189", border:"none", transition:"all 0.15s" }}>{t.l}</button>
             ))}
           </div>
           <div style={{ flex:1, overflow:"hidden", background:"#0f1117" }}>
-            {tab==="kanban" && <Kanban client={client} onUpdate={upd}/>}
-            {tab==="notes" && <NotesPanel client={client} onUpdate={upd}/>}
+            {tab==="kanban" && <Kanban client={client} onUpdate={upd} adding={addingTask} setAdding={setAddingTask}/>}
+            {tab==="notes" && <NotesPanel client={client} onUpdate={upd} scratchNotes={scratchNotes} setScratchNotes={setScratchNotes} daySnap={daySnap} allClients={clients}/>}
             {tab==="weekly" && <WeeklyPanel clients={clients}/>}
             {tab==="summary" && <SummaryPanel client={client}/>}
           </div>
@@ -393,22 +375,17 @@ export default function App() {
 }
 
 // ═══ KANBAN ═══
-function Kanban({ client, onUpdate }) {
-  const [dragged, setDragged] = useState(null);
-  const [overCol, setOverCol] = useState(null);
-  const [expanded, setExpanded] = useState(null);
-  const [adding, setAdding] = useState(false);
-  const [newTxt, setNewTxt] = useState("");
+function Kanban({ client, onUpdate, adding, setAdding }) {
+  const [dragged, setDragged] = useState(null), [overCol, setOverCol] = useState(null), [expanded, setExpanded] = useState(null), [newTxt, setNewTxt] = useState("");
   const drop = colId => { if(dragged) onUpdate({...client, tasks:client.tasks.map(t=>t.id===dragged.id?{...t,status:colId}:t)}); setDragged(null); setOverCol(null); };
   const updT = u => onUpdate({...client, tasks:client.tasks.map(t=>t.id===u.id?u:t)});
   const delT = id => onUpdate({...client, tasks:client.tasks.filter(t=>t.id!==id)});
   const addT = () => { if(!newTxt.trim()) return; onUpdate({...client, tasks:[...client.tasks,{id:uid++,text:newTxt.trim(),priority:"normal",tag:"Action Item",status:"Pending",outcome:"",subtasks:[]}]}); setNewTxt(""); setAdding(false); };
-
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 32px" }}>
         <span style={{ fontSize:16, fontWeight:600, color:"#6b7189" }}>{client.tasks.length} tasks · {client.tasks.filter(t=>t.status==="Done").length} done</span>
-        <button onClick={() => setAdding(true)} style={{ fontSize:16, fontWeight:600, padding:"10px 24px", borderRadius:12, background:"rgba(91,141,239,0.12)", color:"#5b8def", border:"none" }}>+ New Task</button>
+        <span style={{ fontSize:14, color:"#4a4f65" }}>Drag tasks between columns</span>
       </div>
       {adding && <div style={{ padding:"0 32px 14px", display:"flex", gap:12 }}>
         <input autoFocus value={newTxt} onChange={e=>setNewTxt(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addT();if(e.key==="Escape")setAdding(false)}} placeholder="Describe the task..." style={{ flex:1, fontSize:16, padding:"12px 18px", borderRadius:12, background:"#1a1d2e", border:"1px solid #252839", color:"#e8eaf0", outline:"none" }}/>
@@ -418,7 +395,7 @@ function Kanban({ client, onUpdate }) {
       <div style={{ flex:1, overflowX:"auto", overflowY:"hidden", padding:"0 20px 20px" }}>
         <div style={{ display:"flex", gap:16, height:"100%", minWidth:"max-content" }}>
           {COLS.map(col => {
-            const tasks = client.tasks.filter(t=>t.status===col.id); const isOver = overCol===col.id;
+            const tasks = client.tasks.filter(t=>t.status===col.id), isOver = overCol===col.id;
             return (
               <div key={col.id} style={{ width:380, display:"flex", flexDirection:"column", borderRadius:16, background:isOver?"rgba(91,141,239,0.04)":"#161822", border:`1px solid ${isOver?"rgba(91,141,239,0.3)":"#1e2030"}`, transition:"all 0.2s" }}
                 onDragOver={e=>{e.preventDefault();setOverCol(col.id)}} onDragLeave={()=>setOverCol(null)} onDrop={()=>drop(col.id)}>
@@ -440,7 +417,11 @@ function Kanban({ client, onUpdate }) {
 }
 
 function Card({ task, onDrag, onUpd, onDel, isExp, onTog }) {
-  const pc = PRI[task.priority]||PRI.normal; const [tBg,tClr] = TAG_C[task.tag]||["rgba(107,113,137,0.1)","#6b7189"]; const pS = task.subtasks.filter(s=>!s.done).length;
+  const pc = PRI[task.priority]||PRI.normal, [tBg,tClr] = TAG_C[task.tag]||["rgba(107,113,137,0.1)","#6b7189"];
+  const pS = task.subtasks.filter(s=>!s.done).length;
+  const [addingSub, setAddingSub] = useState(false), [newSub, setNewSub] = useState("");
+  const addSubtask = () => { if (!newSub.trim()) return; onUpd({ ...task, subtasks: [...task.subtasks, { id: uid++, text: newSub.trim(), done: false }] }); setNewSub(""); setAddingSub(false); };
+  const delSub = (sid) => onUpd({ ...task, subtasks: task.subtasks.filter(s => s.id !== sid) });
   return (
     <div draggable onDragStart={onDrag} style={{ borderRadius:14, padding:18, marginBottom:12, cursor:"grab", background:"#1c1f2e", border:`1px solid ${isExp?"rgba(91,141,239,0.3)":"#252839"}` }}>
       <div onClick={onTog} style={{ display:"flex", gap:12, cursor:"pointer" }}>
@@ -450,7 +431,8 @@ function Card({ task, onDrag, onUpd, onDel, isExp, onTog }) {
           <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginTop:10 }}>
             <span style={{ fontSize:13, fontWeight:600, padding:"4px 12px", borderRadius:99, background:tBg, color:tClr }}>{task.tag}</span>
             {task.priority!=="normal" && <span style={{ fontSize:13, fontWeight:600, padding:"4px 12px", borderRadius:99, background:`${pc}20`, color:pc, textTransform:"capitalize" }}>{task.priority}</span>}
-            {pS>0 && <span style={{ fontSize:13, color:"#fb923c", marginLeft:"auto" }}>{pS} sub-tasks</span>}
+            {pS>0 && <span style={{ fontSize:13, color:"#fb923c", marginLeft:"auto" }}>{pS} pending</span>}
+            {task.subtasks.length>0 && pS===0 && <span style={{ fontSize:13, color:"#34d399", marginLeft:"auto" }}>✓ all done</span>}
           </div>
         </div>
         <span onClick={e=>{e.stopPropagation();onDel(task.id)}} style={{ color:"#4a4f65", cursor:"pointer", fontSize:18, padding:4 }}>✕</span>
@@ -464,82 +446,111 @@ function Card({ task, onDrag, onUpd, onDel, isExp, onTog }) {
         </div>
         <div style={{ fontSize:12, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", color:"#4a4f65", marginBottom:8 }}>Outcome</div>
         <textarea value={task.outcome} onChange={e=>onUpd({...task,outcome:e.target.value})} placeholder="Record outcome..." rows={3} style={{ width:"100%", fontSize:15, padding:"10px 14px", borderRadius:10, background:"#161822", border:"1px solid #252839", color:"#e8eaf0", outline:"none", resize:"none", lineHeight:1.5 }}/>
-        {task.subtasks.length>0 && <div style={{ marginTop:14 }}><div style={{ fontSize:12, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", color:"#4a4f65", marginBottom:10 }}>Sub-tasks</div>
+        <div style={{ marginTop:14 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+            <div style={{ fontSize:12, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", color:"#4a4f65" }}>Sub-tasks {task.subtasks.length > 0 && `(${task.subtasks.filter(s=>s.done).length}/${task.subtasks.length})`}</div>
+            {!addingSub && <button onClick={()=>setAddingSub(true)} style={{ fontSize:13, fontWeight:600, padding:"4px 14px", borderRadius:8, background:"rgba(91,141,239,0.1)", color:"#5b8def", border:"none" }}>+ Add</button>}
+          </div>
           {task.subtasks.map(sub => (
             <div key={sub.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", borderRadius:10, marginBottom:6, background:sub.done?"rgba(52,211,153,0.06)":"rgba(251,146,60,0.06)" }}>
-              <input type="checkbox" checked={sub.done} onChange={()=>onUpd({...task,subtasks:task.subtasks.map(x=>x.id===sub.id?{...x,done:!x.done}:x)})} style={{ width:20, height:20, accentColor:"#34d399" }}/>
-              <span style={{ fontSize:15, color:sub.done?"#4a4f65":"#9ca3b8", textDecoration:sub.done?"line-through":"none" }}>{sub.text}</span>
+              <input type="checkbox" checked={sub.done} onChange={()=>onUpd({...task,subtasks:task.subtasks.map(x=>x.id===sub.id?{...x,done:!x.done}:x)})} style={{ width:20, height:20, accentColor:"#34d399", flexShrink:0 }}/>
+              <span style={{ flex:1, fontSize:15, color:sub.done?"#4a4f65":"#9ca3b8", textDecoration:sub.done?"line-through":"none" }}>{sub.text}</span>
+              <span onClick={()=>delSub(sub.id)} style={{ color:"#353849", cursor:"pointer", fontSize:16, padding:"0 4px" }}>✕</span>
             </div>
           ))}
-        </div>}
+          {addingSub && <div style={{ display:"flex", gap:8, marginTop:6 }}>
+            <input autoFocus value={newSub} onChange={e=>setNewSub(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addSubtask();if(e.key==="Escape"){setAddingSub(false);setNewSub("");}}} placeholder="Subtask description..." style={{ flex:1, fontSize:14, padding:"10px 14px", borderRadius:10, background:"#161822", border:"1px solid #252839", color:"#e8eaf0", outline:"none" }}/>
+            <button onClick={addSubtask} style={{ fontSize:14, fontWeight:600, padding:"10px 16px", borderRadius:10, background:"#5b8def", color:"white", border:"none" }}>Add</button>
+            <button onClick={()=>{setAddingSub(false);setNewSub("");}} style={{ fontSize:14, padding:"10px 12px", borderRadius:10, background:"#1a1d2e", color:"#6b7189", border:"none" }}>✕</button>
+          </div>}
+          {task.subtasks.length===0 && !addingSub && <div style={{ padding:"12px 14px", borderRadius:10, background:"rgba(107,113,137,0.04)", color:"#353849", fontSize:14, textAlign:"center" }}>No sub-tasks yet</div>}
+        </div>
       </div>}
     </div>
   );
 }
 
-// ═══ AI NOTES ═══
-function NotesPanel({ client, onUpdate }) {
-  const [input, setInput] = useState(""); const [loading, setLoading] = useState(false); const [copiedId, setCopiedId] = useState(null);
+// ═══ NOTES (SCRATCHPAD + AI) ═══
+function NotesPanel({ client, onUpdate, scratchNotes, setScratchNotes, daySnap, allClients }) {
+  const [loading, setLoading] = useState(false), [copiedId, setCopiedId] = useState(null), [subTab, setSubTab] = useState("scratch");
+  const scratch = scratchNotes[client.name] || "";
+  const updateScratch = (val) => setScratchNotes(prev => ({ ...prev, [client.name]: val }));
+
+  const dayDiff = daySnap ? computeDayDiff(daySnap, allClients) : [];
+  const clientDiff = dayDiff.filter(c => c.client === client.name);
+  const diffText = formatDiffText(clientDiff);
+
   const localFormat = (raw) => {
     const fmt = new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"});
     const lines = raw.split(/\n/).filter(l=>l.trim());
     const actions = [], outcomes = [], followups = [];
-    lines.forEach(l => {
-      const lower = l.toLowerCase();
-      if (lower.includes("follow up") || lower.includes("follow-up") || lower.includes("next step") || lower.includes("to do")) followups.push(l.trim());
-      else if (lower.includes("outcome") || lower.includes("result") || lower.includes("confirmed") || lower.includes("completed") || lower.includes("agreed")) outcomes.push(l.trim());
-      else actions.push(l.trim());
-    });
-    return [
-      `DATE: ${fmt}`, `CLIENT: ${client.name}`, `SERVICE TYPE: Support Coordination`, "",
-      "CONTACT/ACTION:",
-      ...(actions.length ? actions.map(a=>`  - ${a}`) : [`  - ${raw.trim()}`]),
-      "", "OUTCOME:",
-      ...(outcomes.length ? outcomes.map(o=>`  - ${o}`) : ["  - [To be recorded]"]),
-      "", "FOLLOW-UP:",
-      ...(followups.length ? followups.map(f=>`  - ${f}`) : ["  - Nil"]),
-      "", `TIME: ${lines.length <= 3 ? 15 : lines.length <= 6 ? 30 : 45} minutes`,
-      `PREPARED BY: Nico — Disability Support Link`
-    ].join("\n");
+    lines.forEach(l => { const lo = l.toLowerCase(); if (lo.includes("follow up")||lo.includes("follow-up")||lo.includes("next step")||lo.includes("to do")) followups.push(l.trim()); else if (lo.includes("outcome")||lo.includes("result")||lo.includes("confirmed")||lo.includes("completed")||lo.includes("agreed")) outcomes.push(l.trim()); else actions.push(l.trim()); });
+    const parts = [`DATE: ${fmt}`, `CLIENT: ${client.name}`, `SERVICE TYPE: Support Coordination`, "", "CONTACT/ACTION:", ...(actions.length ? actions.map(a=>`  - ${a}`) : [`  - ${raw.trim()}`]), "", "OUTCOME:", ...(outcomes.length ? outcomes.map(o=>`  - ${o}`) : ["  - [To be recorded]"]), "", "FOLLOW-UP:", ...(followups.length ? followups.map(f=>`  - ${f}`) : ["  - Nil"])];
+    if (diffText) parts.push("", diffText);
+    parts.push("", `TIME: ${lines.length <= 3 ? 15 : lines.length <= 6 ? 30 : 45} minutes`, `PREPARED BY: Nico — Disability Support Link`);
+    return parts.join("\n");
   };
-  const submit = async () => {
-    if(!input.trim()) return; setLoading(true); let formatted;
+
+  const formatWithAI = async () => {
+    if (!scratch.trim()) return; setLoading(true); let formatted;
+    const diffCtx = diffText ? `\n\nTASK EVOLUTION TODAY:\n${diffText}` : "";
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":import.meta.env.VITE_ANTHROPIC_KEY||"","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1000,messages:[{role:"user",content:`You are an NDIS Support Coordinator case note formatter. Format these raw notes into a professional NDIS case note.\n\nDATE: ${new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"})}\nCLIENT: ${client.name}\nSERVICE TYPE: Support Coordination\n\nUse sections: CONTACT/ACTION, OUTCOME, FOLLOW-UP, TIME.\nKeep professional, concise, NDIS audit-ready.\n\nRaw notes: ${input.trim()}\n\nReturn ONLY the formatted note.`}]})});
+      const res = await fetch("https://api.anthropic.com/v1/messages", { method:"POST", headers:{"Content-Type":"application/json","x-api-key":import.meta.env.VITE_ANTHROPIC_KEY||"","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1500,messages:[{role:"user",content:`You are an NDIS Support Coordinator case note formatter. Format these raw notes into a professional NDIS case note.\n\nDATE: ${new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"})}\nCLIENT: ${client.name}\nSERVICE TYPE: Support Coordination\nCLIENT CONTEXT: ${client.note || "N/A"}\n\nUse sections: CONTACT/ACTION, OUTCOME, FOLLOW-UP, TASK PROGRESS (if task evolution data provided), TIME.\nKeep professional, concise, NDIS audit-ready. Integrate the task evolution data naturally.\n\nRaw notes:\n${scratch.trim()}${diffCtx}\n\nReturn ONLY the formatted note.`}]})});
       if (!res.ok) throw new Error("API error");
-      const data = await res.json(); formatted = data.content?.map(i=>i.text||"").join("\n")||localFormat(input.trim());
-    } catch { formatted = localFormat(input.trim()); }
-    setLoading(false); onUpdate({...client,aiNotes:[...(client.aiNotes||[]),{id:uid++,raw:input.trim(),formatted,timestamp:new Date().toISOString()}]}); setInput("");
+      const data = await res.json(); formatted = data.content?.map(i=>i.text||"").join("\n") || localFormat(scratch.trim());
+    } catch { formatted = localFormat(scratch.trim()); }
+    setLoading(false);
+    onUpdate({...client, aiNotes:[...(client.aiNotes||[]),{id:uid++, raw:scratch.trim(), formatted, timestamp:new Date().toISOString(), hasDiff:clientDiff.length>0}]});
+    updateScratch(""); setSubTab("formatted");
   };
+
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
-      <div style={{ padding:"28px 32px", borderBottom:"1px solid #1e2030" }}>
-        <div style={{ display:"flex", gap:16 }}>
-          <div style={{ width:48, height:48, borderRadius:14, background:"linear-gradient(135deg,#a78bfa,#5b8def)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:22 }}>✦</div>
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:18, fontWeight:600, marginBottom:14 }}>Quick Notes → AI-Formatted Case Notes</div>
-            <textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))submit()}} placeholder={`Type rough notes for ${client.name.split(" ")[0]}...`} rows={4} style={{ width:"100%", fontSize:16, padding:"16px 18px", borderRadius:14, background:"#1a1d2e", border:"1px solid #252839", color:"#e8eaf0", outline:"none", resize:"none", lineHeight:1.6 }}/>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:14 }}>
-              <span style={{ fontSize:14, color:"#4a4f65" }}>Ctrl+Enter to submit</span>
-              <button onClick={submit} disabled={!input.trim()||loading} style={{ fontSize:16, fontWeight:600, padding:"12px 28px", borderRadius:12, background:"linear-gradient(135deg,#a78bfa,#5b8def)", color:"white", border:"none", opacity:(!input.trim()||loading)?0.3:1 }}>{loading?"Formatting...":"✦ Format & Save"}</button>
-            </div>
-          </div>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 32px", borderBottom:"1px solid #1e2030", flexWrap:"wrap", gap:10 }}>
+        <div style={{ display:"flex", gap:6 }}>
+          <button onClick={()=>setSubTab("scratch")} style={{ fontSize:15, fontWeight:600, padding:"8px 20px", borderRadius:10, background:subTab==="scratch"?"rgba(251,146,60,0.12)":"transparent", color:subTab==="scratch"?"#fb923c":"#6b7189", border:"none" }}>✎ Scratchpad</button>
+          <button onClick={()=>setSubTab("formatted")} style={{ fontSize:15, fontWeight:600, padding:"8px 20px", borderRadius:10, background:subTab==="formatted"?"rgba(167,139,250,0.12)":"transparent", color:subTab==="formatted"?"#a78bfa":"#6b7189", border:"none" }}>✦ Formatted ({(client.aiNotes||[]).length})</button>
         </div>
+        {subTab==="scratch" && scratch.trim() && <button onClick={formatWithAI} disabled={loading} style={{ fontSize:15, fontWeight:700, padding:"10px 24px", borderRadius:12, background:"linear-gradient(135deg,#a78bfa,#5b8def)", color:"white", border:"none", opacity:loading?0.5:1, boxShadow:"0 2px 12px rgba(167,139,250,0.3)" }}>{loading?"Formatting...":"✦ AI Format & Save"}</button>}
       </div>
-      <div style={{ flex:1, overflowY:"auto", padding:"24px 32px" }}>
-        {(!client.aiNotes?.length) ? <div style={{ textAlign:"center", padding:"64px 0", color:"#4a4f65" }}><div style={{ fontSize:48, marginBottom:16, opacity:0.3 }}>✦</div><div style={{ fontSize:18, fontWeight:500 }}>No notes yet</div><div style={{ fontSize:15, color:"#353849", marginTop:8 }}>Write rough notes and AI will format them</div></div>
-        : [...(client.aiNotes||[])].reverse().map(n => (
-          <div key={n.id} style={{ borderRadius:16, padding:24, marginBottom:16, background:"#161822", border:"1px solid #1e2030" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
-              <span style={{ fontSize:14, fontWeight:600, color:"#6b7189" }}>{new Date(n.timestamp).toLocaleString("en-AU",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</span>
-              <div style={{ display:"flex", gap:10 }}>
-                <span onClick={()=>{copyText(n.formatted);setCopiedId(n.id);setTimeout(()=>setCopiedId(null),1500)}} style={{ cursor:"pointer", color:copiedId===n.id?"#34d399":"#6b7189", fontSize:16 }}>{copiedId===n.id?"✓ Copied":"⎘ Copy"}</span>
-                <span onClick={()=>onUpdate({...client,aiNotes:client.aiNotes.filter(x=>x.id!==n.id)})} style={{ cursor:"pointer", color:"#4a4f65", fontSize:16 }}>✕</span>
-              </div>
-            </div>
-            <pre style={{ fontSize:15, lineHeight:1.65, whiteSpace:"pre-wrap", color:"#9ca3b8", fontFamily:"inherit", margin:0 }}>{n.formatted}</pre>
+      <div style={{ flex:1, overflowY:"auto" }}>
+        {subTab==="scratch" && <div style={{ padding:"24px 32px", height:"100%", display:"flex", flexDirection:"column" }}>
+          {daySnap && clientDiff.length > 0 && <div style={{ marginBottom:16, padding:"14px 18px", borderRadius:12, background:"rgba(52,211,153,0.06)", border:"1px solid rgba(52,211,153,0.15)" }}>
+            <div style={{ fontSize:13, fontWeight:700, color:"#34d399", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.05em" }}>Task changes today — included in AI format</div>
+            <div style={{ fontSize:14, color:"#9ca3b8", lineHeight:1.6 }}>{clientDiff.map((c,i) => <div key={i} style={{ marginBottom:4 }}>
+              {c.type==="status" && <span>→ <span style={{color:"#e8eaf0"}}>{c.text.substring(0,60)}</span>: {c.from} → <span style={{color:"#34d399"}}>{c.to}</span></span>}
+              {c.type==="outcome" && <span>→ Outcome recorded for <span style={{color:"#e8eaf0"}}>{c.text.substring(0,40)}</span></span>}
+              {c.type==="subtasks" && <span>→ {c.completed} subtask(s) done on <span style={{color:"#e8eaf0"}}>{c.text.substring(0,40)}</span></span>}
+              {c.type==="added" && <span>+ New task: <span style={{color:"#e8eaf0"}}>{c.text.substring(0,60)}</span></span>}
+              {c.type==="removed" && <span>✕ Removed: <span style={{color:"#e8eaf0"}}>{c.text.substring(0,60)}</span></span>}
+            </div>)}</div>
+          </div>}
+          {daySnap && clientDiff.length===0 && <div style={{ marginBottom:16, padding:"12px 18px", borderRadius:12, background:"rgba(107,113,137,0.06)", border:"1px solid rgba(107,113,137,0.1)" }}><span style={{ fontSize:13, color:"#6b7189" }}>Day active — no task changes for {client.name.split(" ")[0]} yet</span></div>}
+          <textarea value={scratch} onChange={e=>updateScratch(e.target.value)} placeholder={`Dump your notes for ${client.name.split(" ")[0]} here...\n\nAnything goes — rough notes, call logs, thoughts.\nWhen ready, hit "AI Format & Save".`} style={{ flex:1, width:"100%", fontSize:16, padding:"20px 22px", borderRadius:16, background:"#161822", border:"1px solid #1e2030", color:"#e8eaf0", outline:"none", resize:"none", lineHeight:1.7, fontFamily:"inherit", minHeight:200 }}/>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12 }}>
+            <span style={{ fontSize:13, color:"#353849" }}>{scratch.trim() ? `${scratch.trim().split(/\n/).filter(l=>l.trim()).length} lines · auto-saved` : "Start typing — notes save automatically"}</span>
+            {scratch.trim() && <button onClick={()=>updateScratch("")} style={{ fontSize:13, fontWeight:600, padding:"6px 16px", borderRadius:8, background:"rgba(248,113,113,0.08)", color:"#f87171", border:"none" }}>Clear</button>}
           </div>
-        ))}
+        </div>}
+        {subTab==="formatted" && <div style={{ padding:"24px 32px" }}>
+          {(!client.aiNotes?.length) ? <div style={{ textAlign:"center", padding:"64px 0", color:"#4a4f65" }}><div style={{ fontSize:48, marginBottom:16, opacity:0.3 }}>✦</div><div style={{ fontSize:18, fontWeight:500 }}>No formatted notes yet</div><div style={{ fontSize:15, color:"#353849", marginTop:8 }}>Write notes in Scratchpad, then hit AI Format</div></div>
+          : [...(client.aiNotes||[])].reverse().map(n => (
+            <div key={n.id} style={{ borderRadius:16, padding:24, marginBottom:16, background:"#161822", border:"1px solid #1e2030" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ fontSize:14, fontWeight:600, color:"#6b7189" }}>{new Date(n.timestamp).toLocaleString("en-AU",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</span>
+                  {n.hasDiff && <span style={{ fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:99, background:"rgba(52,211,153,0.1)", color:"#34d399" }}>incl. task changes</span>}
+                </div>
+                <div style={{ display:"flex", gap:10 }}>
+                  <span onClick={()=>{copyText(n.formatted);setCopiedId(n.id);setTimeout(()=>setCopiedId(null),1500)}} style={{ cursor:"pointer", color:copiedId===n.id?"#34d399":"#6b7189", fontSize:15, fontWeight:600 }}>{copiedId===n.id?"✓ Copied":"⎘ Copy"}</span>
+                  <span onClick={()=>onUpdate({...client,aiNotes:client.aiNotes.filter(x=>x.id!==n.id)})} style={{ cursor:"pointer", color:"#353849", fontSize:16 }}>✕</span>
+                </div>
+              </div>
+              <pre style={{ fontSize:15, lineHeight:1.65, whiteSpace:"pre-wrap", color:"#9ca3b8", fontFamily:"inherit", margin:0 }}>{n.formatted}</pre>
+            </div>
+          ))}
+        </div>}
       </div>
     </div>
   );
@@ -547,7 +558,7 @@ function NotesPanel({ client, onUpdate }) {
 
 // ═══ WEEKLY ═══
 function WeeklyPanel({ clients }) {
-  const [copied, setCopied] = useState(null); const [sub, setSub] = useState("summary");
+  const [copied, setCopied] = useState(null), [sub, setSub] = useState("summary");
   const sTxt = genWeeklySummary(clients), nTxt = genCaseNotes(clients);
   const copy = (t,id) => { copyText(t); setCopied(id); setTimeout(()=>setCopied(null),2000); };
   const dl = (t,fn) => { const b = new Blob([t],{type:"text/plain"}); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href=u; a.download=fn; a.click(); URL.revokeObjectURL(u); };
@@ -594,7 +605,7 @@ function SummaryPanel({ client }) {
 }
 
 function AddForm({ onAdd, onClose }) {
-  const [name, setName] = useState(""); const [note, setNote] = useState("");
+  const [name, setName] = useState(""), [note, setNote] = useState("");
   const add = () => { if(!name.trim()) return; onAdd({name:name.trim(),priority:"normal",tags:["Action Item"],note:note.trim(),tasks:[],aiNotes:[]}); };
   return (<div>
     <div style={{ marginBottom:16 }}><div style={{ fontSize:13, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", color:"#4a4f65", marginBottom:8 }}>Client Name *</div>
