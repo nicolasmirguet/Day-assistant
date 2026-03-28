@@ -1,0 +1,609 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+
+// ═══ PERSISTENCE ═══
+const STORAGE_KEY = "dsl-tracker-data";
+function saveData(clients) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 2, ts: Date.now(), clients })); } catch {}
+}
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { const d = JSON.parse(raw); if (d?.clients) return d.clients; }
+  } catch {}
+  return null;
+}
+
+// ═══ CLIPBOARD HELPER ═══
+function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  }
+  return fallbackCopy(text);
+}
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.cssText = "position:fixed;left:-9999px;top:-9999px";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); } catch {}
+  document.body.removeChild(ta);
+  return Promise.resolve();
+}
+
+// ═══ DATA ═══
+let uid = 1;
+const tk = (text, pri, tag, subs = []) => ({
+  id: uid++, text, priority: pri, tag, status: "Pending", outcome: "",
+  subtasks: subs.map(t => ({ id: uid++, text: t, done: false })),
+});
+
+const DEFAULT_CLIENTS = [
+  { name: "Timothy Boyle", priority: "urgent", tags: ["Budget Alert","Action Item"], note: "Plan 10% overspending (51% elapsed, 61% spent). Prioritise essential tasks only.", tasks: [
+    tk("Disability Pension & SIL/SDA options — review and progress planning","urgent","Action Item",["Review disability pension eligibility","Research SIL & SDA options and document findings","Follow up care team meeting outcomes from 13/03 with Paige Ngawati (Healthscope)","Progress BSP budget allocation with Pooja Saini (Mind Recovery)","Schedule next face-to-face session with Timothy"]),
+    tk("Budget OVERSPENDING — review pace with Trinity Plan Management","urgent","Budget Alert",["51% plan elapsed, 61% funds spent — 10% variance","Do NOT create new billable tasks until resolved"]),
+  ], aiNotes: [] },
+  { name: "Bronya Worsley", priority: "urgent", tags: ["Action Item","Overdue"], note: "Multiple overdue items. SDA transition with Vera Living ongoing.", tasks: [
+    tk("Call BrightSky — follow up on supports/referral","high","Action Item"),
+    tk("Keep attempting to contact Talbo by phone","normal","Action Item",["Log each call attempt with time and outcome"]),
+    tk("Follow up IRS physiotherapy — first appointment scheduling (URGENT, due 21/03)","urgent","Overdue",["Client has flagged this as urgent — escalate if no response"]),
+    tk("Confirm Performance Health payment remittance — resting splint (due 21/03)","urgent","Overdue"),
+    tk("Liaise with support worker Freshta — recliner assessment and urgent equipment needs (due 22/03)","high","Overdue"),
+    tk("Confirm OT appointment 13/04 (Kingston Community Rehabilitation Centre)","medium","Monitoring"),
+  ], aiNotes: [] },
+  { name: "Angelo Pezzimenti", priority: "high", tags: ["Overdue","Due This Week"], note: "Decision to remain with DSL after health deterioration. Kerry returning home.", tasks: [
+    tk("Follow up Harley and Cindy — formalise re-engagement arrangements (due 22/03)","high","Overdue",["Monitor health status following decision to remain with DSL"]),
+    tk("Schedule next review meeting with client and Kerry (due 27/03)","medium","Due This Week",["Discuss alternative therapeutic support options if client reconsiders Natasha"]),
+  ], aiNotes: [] },
+  { name: "Brenda Tracey", priority: "high", tags: ["Overdue","Check-in Due"], note: "NDIA review #29915760 in progress. 4-wheel walker invoice pending.", tasks: [
+    tk("Follow up Instacare — 4-wheel walker invoice payment (due 21/03)","urgent","Overdue",["Confirm payment processed","Update budget notes"]),
+    tk("Confirm NDIA review #29915760 outcome and any funding adjustment (due 24/03)","high","Overdue"),
+    tk("Schedule next support coordination review with client (due 27/03)","medium","Due This Week"),
+    tk("Check-in due in 5 days","high","Check-in Due"),
+  ], aiNotes: [] },
+  { name: "Catriona Savage", priority: "medium", tags: ["Budget Alert","Monitoring"], note: "PRC at 52% utilised. Clean and Personal recently commenced.", tasks: [
+    tk("Monitor home support commencement (Clean and Personal) and client satisfaction (due 22/03)","medium","Monitoring"),
+    tk("Schedule next PRC monitoring review for April 2026 (due 25/03)","medium","Monitoring"),
+    tk("Budget monitor — PRC at 52% utilised","medium","Budget Alert"),
+  ], aiNotes: [] },
+  { name: "Christopher McLaughlin", priority: "normal", tags: ["Monitoring"], note: "Case closed. Handover to Melinda Minerve complete.", tasks: [
+    tk("Ensure all archived files securely stored; obtain Melinda Minerve formal closure acknowledgement","normal","Monitoring"),
+  ], aiNotes: [] },
+  { name: "Con Karoglidis", priority: "normal", tags: ["Action Item","Due This Week"], note: "Ambition Health Group physio SA executed. First session was due 22/03.", tasks: [
+    tk("Call Con Karoglidis — PRC check-in & confirm first physio session completed","normal","Action Item",["Confirm first Ambition Health physio session occurred (was due 22/03)","Schedule next PRC check-in for April 2026 (due 30/03)"]),
+    tk("PRC monitoring and goal progress review (due 27/03)","normal","Due This Week"),
+  ], aiNotes: [] },
+  { name: "Dean Edwards", priority: "high", tags: ["Overdue","Due This Week"], note: "SDA COC variation ref 31507360 lodged with NDIA. New providers: Anna Hooker (speech) and Alissa Larrescy (dietician).", tasks: [
+    tk("Arrange first dietician appointment with Alissa Larrescy / HLA (due 23/03)","high","Overdue"),
+    tk("Follow up NDIA on SDA variation ref 31507360 — contact Ellen (NPST) if no response by 27/03","high","Due This Week"),
+    tk("Schedule quarterly review meeting with Anna Hooker (Connect2Care, speech pathology) — end March","medium","Due This Week"),
+  ], aiNotes: [] },
+  { name: "Deborah Dean", priority: "medium", tags: ["Overdue"], note: "Service closing. Final budget statement confirmed zero balance.", tasks: [
+    tk("Confirm case closure completion with management (due 24/03)","medium","Overdue"),
+    tk("File case closure in Astalty by 30/03","medium","Due This Week"),
+  ], aiNotes: [] },
+  { name: "Duncan Phillips", priority: "urgent", tags: ["Overdue","Check-in Due"], note: "Currently in hospital. Reinstatement plan with all providers needs coordinating.", tasks: [
+    tk("Pre-discharge coordination meeting with hospital discharge planner (due 25/03)","urgent","Overdue",["Confirm reinstatement plan with all active providers upon discharge notification"]),
+    tk("Check-in due in 5 days — currently in hospital","high","Check-in Due"),
+    tk("Monitor recovery progress; confirm providers reinstated on discharge","high","Monitoring"),
+  ], aiNotes: [] },
+  { name: "Edmund Dichosa", priority: "high", tags: ["Overdue","Budget Alert","Due This Week"], note: "COC ref 31355744 requesting 1:1 support (currently 1:3). New OT: Ivy Man Hang Chan.", tasks: [
+    tk("Confirm capacity building fund allocation with Ivy and OT provider (due 25/03)","high","Overdue"),
+    tk("Schedule coordination meeting with Happy Health Home Care / Denis Riabov (due 24/03)","high","Overdue"),
+    tk("Pursue NDIA response to COC ref 31355744 — 1:1 support (due 28/03)","high","Due This Week"),
+    tk("Budget review — L2 SC at 75% utilised. 12 weeks to plan end","high","Budget Alert",["Confirm plan review preparation underway"]),
+  ], aiNotes: [] },
+  { name: "Eva Marie Kjellberg", priority: "high", tags: ["Overdue","Due This Week"], note: "New SW Nicki Abebe (9D Care) replacing Ayse. Salt Foundation and Kunan involved.", tasks: [
+    tk("Confirm new support worker Nicki Abebe commencement date with 9D Care (due 20/03)","high","Overdue"),
+    tk("Transition meeting — Nicki Abebe, Salt Foundation, Kunan case worker (due 27/03)","high","Due This Week"),
+    tk("Monitor support continuity in initial weeks of new worker appointment","medium","Monitoring"),
+  ], aiNotes: [] },
+  { name: "Ian Faulds", priority: "urgent", tags: ["Overdue","Budget Alert","Action Item"], note: "OT at 92% utilised. Extra funds allocated for Ivy OT — SA needs redrawing. Plan ends June 2026.", tasks: [
+    tk("Push OT — follow up again (escalate if no response)","high","Action Item"),
+    tk("Respond to Admin re: SP OT","normal","Action Item"),
+    tk("Obtain remaining executed SA copies from all signatories (due 25/03)","urgent","Overdue",["Arrange final SA sign-off meeting before plan end June 2026"]),
+    tk("Schedule next PRC coaching session (was due week of 23/03)","high","Overdue"),
+    tk("Budget review URGENT — OT at 92%. Redraw SA for extra Ivy OT funds","urgent","Budget Alert",["Liaise with Admin (Shirley) to redraw SA","Complete budget review in Astalty","Check if additional funding needed"]),
+  ], aiNotes: [] },
+  { name: "Jeanette Jovanoski", priority: "high", tags: ["Overdue","Due This Week"], note: "Onboarding complete. Clean and Personal first visit done. Boomaroo plan manager.", tasks: [
+    tk("File signed support plan and Emergency & Disaster Plan in Astalty (due 21/03)","high","Overdue"),
+    tk("Schedule plan review meeting (week of 30/03) + establish contact schedule with Wendy Kohn","medium","Due This Week"),
+  ], aiNotes: [] },
+  { name: "Keith Linklater", priority: "high", tags: ["Overdue"], note: "DJCS CCO program formally closed. Post-CCO support framework now active.", tasks: [
+    tk("File DJCS closure documentation in Astalty (due 21/03)","high","Overdue"),
+    tk("Schedule next PRC coaching session (was due week of 23/03)","high","Overdue"),
+    tk("Liaise with plan manager re adjusted funding allocation post-CCO (due 22/03)","high","Overdue"),
+  ], aiNotes: [] },
+  { name: "Kylie Brewer", priority: "medium", tags: ["Action Item","Budget Alert"], note: "PRC at 51% utilised.", tasks: [
+    tk("Call Kylie Brewer — PRC check-in","medium","Action Item",["PRC budget at 51% — discuss if pace is appropriate"]),
+    tk("Budget monitor — PRC at 51% utilised","medium","Budget Alert"),
+  ], aiNotes: [] },
+  { name: "Matthew Dixon", priority: "high", tags: ["Check-in Due","Budget Alert"], note: "Physio showing strong improvement. Angliss Hospital appointments. Goals tab update ongoing.", tasks: [
+    tk("Check-in due in 5 days — L2 SC at 52% budget","high","Check-in Due",["Confirm physio has resumed (was due week of 16/03)","Continue researching community participation options","Goals tab update in Astalty still in progress"]),
+    tk("Budget monitor — L2 SC at 52% utilised","medium","Budget Alert"),
+  ], aiNotes: [] },
+  { name: "Mischa Siemenesma", priority: "medium", tags: ["Overdue"], note: "Mable sessions with Harley Willmott. Plan end Jan 2027, $5,526.71 remaining.", tasks: [
+    tk("Confirm Instacare processed all approved Mable sessions for Harley Willmott","medium","Overdue"),
+    tk("Respond to Harley Willmott's revised Mable agreement request — confirm with Mischa","medium","Overdue"),
+    tk("Routine monitoring check-in","normal","Monitoring"),
+  ], aiNotes: [] },
+  { name: "Rohan Van Prooyen", priority: "urgent", tags: ["Budget Alert","Monitoring"], note: "Plan ends April 2026. BSP report overdue. Visual schedule implementation in progress. AT budget $1,430 remaining.", tasks: [
+    tk("Budget review URGENT — L2 SC at 77%. Plan ends April 2026","urgent","Budget Alert",["Complete budget review in Astalty urgently","Review and reallocate supports as needed","Confirm plan review preparation is in progress"]),
+    tk("OT Ivy meet and greet at Cadenza — with Alisa & Shane Van Prooyen and Nikita Brockmuller (OnPsych)","high","Monitoring",["Confirm Ivy is available (was on leave ~15 days)","Visual schedule finalisation pending staff input from Prakash (Cadenza House Manager)","Nintendo Switch AT purchase — awaiting family confirmation ($1,430 remaining)","BSP end-of-plan progress report was due 20/03 — complete ASAP"]),
+  ], aiNotes: [] },
+  { name: "Sean Kenyon", priority: "high", tags: ["New Client"], note: "Plan started ~1 week ago. All SAs expiring 19/03 — confirm renewals. Physio with Denis Riabov confirmed.", tasks: [
+    tk("New client onboarding — complete initial checklist","high","New Client",["Initial Assessment","Consent Form","Bank Form (if applicable)","Plan Manager Setup — liaise with Plan Assure","Physio with Denis Riabov (DSL) — confirmed ✓","Relevant Service Referrals","Track funds in Astalty budget tool","Add NDIS goals in Astalty goals tool","Confirm all SAs renewed (expiry was 19/03)"]),
+  ], aiNotes: [] },
+  { name: "Stuart Nolte", priority: "high", tags: ["Check-in Due"], note: "PRC monitoring. Plan end Aug 2026, $9,171.48 remaining.", tasks: [
+    tk("Check-in due in 5 days — PRC session also overdue (was due week of 16/03)","high","Check-in Due",["Send updated PRC progress summary for review and acknowledgement","Confirm updated PRC schedule Mar–May 2026"]),
+  ], aiNotes: [] },
+  { name: "Terry Biviano", priority: "high", tags: ["Overdue"], note: "Plan extended to 17 Feb 2027, SC funding $2,414.62. Duplicate payment credit with Invictus Health resolved.", tasks: [
+    tk("Arrange appointment with Invictus Health (Hannes) — use duplicate payment credit (due 25/03)","high","Overdue"),
+    tk("Follow up with Elizabeth Biviano (sister/carer) re community support needs (due 24/03)","medium","Overdue"),
+    tk("Monitor new NDIS plan implementation and provider transition","medium","Monitoring"),
+  ], aiNotes: [] },
+  { name: "KAch / Ivy — Admin", priority: "normal", tags: ["Action Item"], note: "Email from Ivy to respond to.", tasks: [
+    tk("Respond to email from Ivy re: KAch service agreement","normal","Action Item"),
+  ], aiNotes: [] },
+];
+
+// Ensure uid is past all default IDs
+uid = 500;
+
+const COLS = [
+  { id: "Pending", label: "Backlog", c: "#6b7189" },
+  { id: "In Progress", label: "In Progress", c: "#5b8def" },
+  { id: "Follow-Up Required", label: "Follow-Up", c: "#fb923c" },
+  { id: "No Answer", label: "No Answer", c: "#fbbf24" },
+  { id: "Done", label: "Done", c: "#34d399" },
+];
+const STATUSES = ["Pending","In Progress","Done","No Answer","Follow-Up Required"];
+const PRI = { urgent:"#f87171", high:"#fb923c", medium:"#fbbf24", normal:"#6b7189" };
+const TAG_C = {
+  "Overdue":["rgba(248,113,113,0.1)","#fb7185"],
+  "Budget Alert":["rgba(248,113,113,0.08)","#f87171"],
+  "Check-in Due":["rgba(167,139,250,0.1)","#a78bfa"],
+  "New Client":["rgba(52,211,153,0.1)","#34d399"],
+  "Action Item":["rgba(251,146,60,0.1)","#fb923c"],
+  "Monitoring":["rgba(45,212,191,0.1)","#2dd4bf"],
+  "Due This Week":["rgba(251,191,36,0.1)","#fbbf24"],
+};
+
+// ═══ HELPERS ═══
+function exportJSON(clients) {
+  const data = { lastUpdated: new Date().toISOString(), coordinator: "Nico", organisation: "Disability Support Link", clients };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "tracker-data.json"; a.click(); URL.revokeObjectURL(url);
+}
+function importJSON(file, cb) {
+  const r = new FileReader();
+  r.onload = e => { try { const d = JSON.parse(e.target.result); if (d.clients) cb(d.clients); } catch { alert("Invalid JSON"); } };
+  r.readAsText(file);
+}
+
+function genWeeklySummary(clients) {
+  const now = new Date(), ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1);
+  const fmt = d => d.toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"});
+  const L = [`WEEKLY SUMMARY — ${fmt(ws)} to ${fmt(now)}`, "Support Coordinator: Nico | Disability Support Link", ""];
+  const secs = [
+    { t:"COMPLETED",i:"✓",f:t=>t.status==="Done" },
+    { t:"IN PROGRESS",i:"…",f:t=>t.status==="In Progress" },
+    { t:"FOLLOW-UP / NO ANSWER",i:"⚑",f:t=>t.status==="Follow-Up Required"||t.status==="No Answer" },
+    { t:"OVERDUE / URGENT",i:"⚠",f:t=>(t.tag==="Overdue"||t.priority==="urgent")&&t.status!=="Done" },
+    { t:"PENDING",i:"○",f:t=>t.status==="Pending" },
+  ];
+  secs.forEach(s => {
+    const m = []; clients.forEach(c => { const ts = c.tasks.filter(s.f); if (ts.length) m.push({n:c.name,ts}); });
+    if (m.length) { L.push(`═══ ${s.t} ═══`); m.forEach(x => { L.push(`  ${x.n}`); x.ts.forEach(t => { L.push(`    ${s.i} ${t.text}`); if(t.outcome) L.push(`      → ${t.outcome}`); }); }); L.push(""); }
+  });
+  const a = clients.flatMap(c=>c.tasks);
+  L.push("───────────────────");
+  L.push(`Total: ${a.length} tasks across ${clients.length} clients`);
+  L.push(`Done: ${a.filter(t=>t.status==="Done").length} | In Progress: ${a.filter(t=>t.status==="In Progress").length} | Overdue: ${a.filter(t=>t.tag==="Overdue"&&t.status!=="Done").length} | Urgent: ${a.filter(t=>t.priority==="urgent"&&t.status!=="Done").length}`);
+  return L.join("\n");
+}
+
+function genCaseNotes(clients) {
+  const fmt = d => d.toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"});
+  const now = new Date(), L = [];
+  clients.forEach(c => {
+    const active = c.tasks.filter(t=>t.status==="Done"||t.status==="In Progress"||t.status==="Follow-Up Required");
+    if (!active.length) return;
+    const mins = active.length<=2?15:active.length<=4?30:active.length<=6?45:60;
+    L.push("═".repeat(50), `DATE: ${fmt(now)}`, `CLIENT: ${c.name}`, "SERVICE TYPE: Support Coordination", "");
+    L.push("CONTACT/ACTION:");
+    active.forEach(t => L.push(`  - [${t.status}] ${t.text}`));
+    L.push("","OUTCOME:");
+    const withOutcome = active.filter(t=>t.outcome);
+    if (withOutcome.length) withOutcome.forEach(t => L.push(`  - ${t.outcome}`));
+    else L.push("  - [To be recorded]");
+    L.push("","FOLLOW-UP:");
+    const fu = c.tasks.filter(t=>t.status!=="Done");
+    if (fu.length) fu.forEach(t => L.push(`  - ${t.text}`)); else L.push("  - Nil");
+    L.push("",`TIME: ${mins} minutes`,`PREPARED BY: Nico — Disability Support Link`,"");
+  });
+  return L.join("\n");
+}
+
+// ═══ APP ═══
+export default function App() {
+  const [clients, setClientsRaw] = useState(() => loadData() || DEFAULT_CLIENTS);
+  const [sel, setSel] = useState(() => (loadData() || DEFAULT_CLIENTS)[0]?.name);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("All");
+  const [tab, setTab] = useState("kanban");
+  const [collapsed, setCollapsed] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  // Auto-save on every change
+  const setClients = useCallback((updater) => {
+    setClientsRaw(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      saveData(next);
+      return next;
+    });
+  }, []);
+
+  const client = clients.find(c => c.name === sel);
+  const upd = u => setClients(cs => cs.map(c => c.name === u.name ? u : c));
+  const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2500); };
+
+  const filtered = clients
+    .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()))
+    .filter(c => {
+      if (filter==="Urgent") return c.tasks.some(t=>t.priority==="urgent"&&t.status!=="Done");
+      if (filter==="Overdue") return c.tasks.some(t=>t.tag==="Overdue"&&t.status!=="Done");
+      if (filter==="Active") return c.tasks.some(t=>t.status!=="Done");
+      return true;
+    });
+
+  const all = clients.flatMap(c=>c.tasks);
+  const doneN = all.filter(t=>t.status==="Done").length;
+  const urgN = all.filter(t=>t.priority==="urgent"&&t.status!=="Done").length;
+
+  const handleImport = useCallback(e => {
+    const f = e.target.files?.[0];
+    if (f) importJSON(f, d => { setClients(d); showToast("Imported!"); });
+    e.target.value = "";
+  }, [setClients]);
+
+  const resetData = () => { if (window.confirm("Reset all data to defaults? This cannot be undone.")) { setClients(DEFAULT_CLIENTS); setSel(DEFAULT_CLIENTS[0].name); showToast("Data reset"); } };
+
+  return (
+    <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:"#0f1117", fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif", color:"#e8eaf0" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box}
+        ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a2d3e;border-radius:10px}
+        button{font-family:inherit;cursor:pointer} select{font-family:inherit} input{font-family:inherit} textarea{font-family:inherit}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}
+      </style>
+      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:99, padding:"14px 24px", borderRadius:12, fontSize:15, fontWeight:600, background:"rgba(52,211,153,0.15)", color:"#34d399", border:"1px solid rgba(52,211,153,0.3)" }}>{toast}</div>}
+
+      {/* SIDEBAR */}
+      <div style={{ display:"flex", flexDirection:"column", width:collapsed?80:340, background:"#131520", borderRight:"1px solid #1e2030", flexShrink:0, transition:"width 0.25s ease" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:14, padding:"20px", borderBottom:"1px solid #1e2030" }}>
+          {!collapsed && <>
+            <div style={{ width:44, height:44, borderRadius:12, background:"linear-gradient(135deg,#5b8def,#a78bfa)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>◈</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:20, fontWeight:800, letterSpacing:"-0.02em" }}>DSL Tracker</div>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
+                <span style={{ fontSize:14, color:"#6b7189" }}>Support Coordination</span>
+                <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:99, background:"rgba(52,211,153,0.12)", color:"#34d399" }}>
+                  <span style={{ width:7, height:7, borderRadius:4, background:"#34d399", display:"inline-block" }}/>Saved
+                </span>
+              </div>
+            </div>
+          </>}
+          <button onClick={() => setCollapsed(!collapsed)} style={{ background:"none", border:"none", color:"#6b7189", padding:8, fontSize:18 }}>{collapsed?"▸":"◂"}</button>
+        </div>
+
+        {!collapsed && <>
+          <div style={{ padding:"16px 20px", borderBottom:"1px solid #1e2030", display:"flex", gap:10, flexWrap:"wrap" }}>
+            <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(52,211,153,0.12)", color:"#34d399" }}>✓ {doneN}/{all.length}</span>
+            {urgN>0 && <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(248,113,113,0.12)", color:"#f87171" }}>⚠ {urgN}</span>}
+          </div>
+          <div style={{ padding:"16px 20px" }}>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients..." style={{ width:"100%", fontSize:16, padding:"14px 18px", borderRadius:12, background:"#1a1d2e", border:"1px solid #252839", color:"#e8eaf0", outline:"none" }}/>
+            <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
+              {["All","Urgent","Overdue","Active"].map(f => (
+                <button key={f} onClick={() => setFilter(f)} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:10, background:filter===f?"rgba(91,141,239,0.15)":"transparent", color:filter===f?"#5b8def":"#6b7189", border:filter===f?"1px solid rgba(91,141,239,0.3)":"1px solid transparent" }}>{f}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ flex:1, overflowY:"auto", padding:"4px 12px" }}>
+            {filtered.map(c => {
+              const isSel = c.name===sel, hasUrg = c.tasks.some(t=>t.priority==="urgent"&&t.status!=="Done");
+              const dn = c.tasks.filter(t=>t.status==="Done").length, tot = c.tasks.length, pct = tot>0?Math.round((dn/tot)*100):0;
+              return (
+                <div key={c.name} onClick={() => setSel(c.name)} style={{ padding:"14px 16px", borderRadius:14, marginBottom:4, cursor:"pointer", background:isSel?"rgba(91,141,239,0.1)":"transparent", borderLeft:isSel?"3px solid #5b8def":"3px solid transparent", transition:"all 0.15s" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                    <div style={{ width:44, height:44, borderRadius:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, flexShrink:0, background:hasUrg?"rgba(248,113,113,0.15)":"rgba(91,141,239,0.12)", color:hasUrg?"#f87171":"#5b8def" }}>
+                      {c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ fontSize:16, fontWeight:600, color:isSel?"#e8eaf0":"#9ca3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.name}</span>
+                        {hasUrg && <span style={{ fontSize:14, color:"#f87171" }}>⚠</span>}
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:8 }}>
+                        <div style={{ flex:1, height:6, borderRadius:3, background:"#252839", overflow:"hidden" }}>
+                          <div style={{ height:"100%", borderRadius:3, width:`${pct}%`, background:pct===100?"#34d399":"#5b8def", transition:"width 0.3s" }}/>
+                        </div>
+                        <span style={{ fontSize:14, color:"#6b7189" }}>{dn}/{tot}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ padding:"12px 20px", borderTop:"1px solid #1e2030", display:"flex", flexDirection:"column", gap:8 }}>
+            <button onClick={() => setShowAdd(true)} style={{ width:"100%", padding:"14px 0", borderRadius:12, fontSize:16, fontWeight:600, background:"rgba(91,141,239,0.12)", color:"#5b8def", border:"none" }}>+ Add Client</button>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={() => { exportJSON(clients); showToast("Exported"); }} style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(52,211,153,0.1)", color:"#34d399", border:"none" }}>↓ Export</button>
+              <label style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(167,139,250,0.1)", color:"#a78bfa", textAlign:"center", cursor:"pointer" }}>↑ Import<input type="file" accept=".json" onChange={handleImport} style={{ display:"none" }}/></label>
+              <button onClick={resetData} style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(248,113,113,0.08)", color:"#f87171", border:"none" }}>↺ Reset</button>
+            </div>
+          </div>
+        </>}
+        {collapsed && <div style={{ flex:1, overflowY:"auto", padding:"12px 0" }}>
+          {filtered.map(c => <div key={c.name} onClick={() => setSel(c.name)} title={c.name} style={{ display:"flex", justifyContent:"center", padding:"8px 0", cursor:"pointer" }}>
+            <div style={{ width:48, height:48, borderRadius:24, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, background:c.name===sel?"rgba(91,141,239,0.2)":"rgba(91,141,239,0.08)", color:c.name===sel?"#5b8def":"#6b7189", border:c.name===sel?"3px solid #5b8def":"3px solid transparent" }}>
+              {c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}
+            </div>
+          </div>)}
+        </div>}
+      </div>
+
+      {/* MAIN */}
+      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+        {client ? <>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 32px", background:"#131520", borderBottom:"1px solid #1e2030", flexWrap:"wrap", gap:12 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+              <div style={{ width:52, height:52, borderRadius:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, background:client.priority==="urgent"?"rgba(248,113,113,0.15)":"rgba(91,141,239,0.12)", color:client.priority==="urgent"?"#f87171":"#5b8def" }}>
+                {client.name.split(" ").map(n=>n[0]).join("").slice(0,2)}
+              </div>
+              <div><div style={{ fontSize:22, fontWeight:700 }}>{client.name}</div><div style={{ fontSize:15, color:"#6b7189", marginTop:4, maxWidth:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{client.note}</div></div>
+            </div>
+            <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+              {client.tags.map(t => { const [bg,clr]=TAG_C[t]||["rgba(107,113,137,0.1)","#6b7189"]; return <span key={t} style={{ fontSize:14, fontWeight:600, padding:"6px 16px", borderRadius:99, background:bg, color:clr }}>{t}</span>; })}
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:6, padding:"14px 32px", borderBottom:"1px solid #1e2030", background:"#0f1117", flexWrap:"wrap" }}>
+            {[{id:"kanban",l:"◫ Tasks"},{id:"notes",l:"✦ AI Notes"},{id:"weekly",l:"📋 Weekly Summary"},{id:"summary",l:"⊞ Client Summary"}].map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{ fontSize:16, fontWeight:600, padding:"10px 22px", borderRadius:10, background:tab===t.id?"rgba(91,141,239,0.12)":"transparent", color:tab===t.id?"#5b8def":"#6b7189", border:"none", transition:"all 0.15s" }}>{t.l}</button>
+            ))}
+          </div>
+          <div style={{ flex:1, overflow:"hidden", background:"#0f1117" }}>
+            {tab==="kanban" && <Kanban client={client} onUpdate={upd}/>}
+            {tab==="notes" && <NotesPanel client={client} onUpdate={upd}/>}
+            {tab==="weekly" && <WeeklyPanel clients={clients}/>}
+            {tab==="summary" && <SummaryPanel client={client}/>}
+          </div>
+        </> : <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", color:"#4a4f65", fontSize:20 }}>Select a client</div>}
+      </div>
+
+      {showAdd && <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:50 }}>
+        <div style={{ background:"#1c1f2e", border:"1px solid #252839", borderRadius:20, padding:36, width:"100%", maxWidth:480 }}>
+          <div style={{ fontSize:22, fontWeight:700, marginBottom:24 }}>Add Client</div>
+          <AddForm onAdd={nc => { setClients(cs => [...cs, nc]); setSel(nc.name); setShowAdd(false); }} onClose={() => setShowAdd(false)}/>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+// ═══ KANBAN ═══
+function Kanban({ client, onUpdate }) {
+  const [dragged, setDragged] = useState(null);
+  const [overCol, setOverCol] = useState(null);
+  const [expanded, setExpanded] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const [newTxt, setNewTxt] = useState("");
+  const drop = colId => { if(dragged) onUpdate({...client, tasks:client.tasks.map(t=>t.id===dragged.id?{...t,status:colId}:t)}); setDragged(null); setOverCol(null); };
+  const updT = u => onUpdate({...client, tasks:client.tasks.map(t=>t.id===u.id?u:t)});
+  const delT = id => onUpdate({...client, tasks:client.tasks.filter(t=>t.id!==id)});
+  const addT = () => { if(!newTxt.trim()) return; onUpdate({...client, tasks:[...client.tasks,{id:uid++,text:newTxt.trim(),priority:"normal",tag:"Action Item",status:"Pending",outcome:"",subtasks:[]}]}); setNewTxt(""); setAdding(false); };
+
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 32px" }}>
+        <span style={{ fontSize:16, fontWeight:600, color:"#6b7189" }}>{client.tasks.length} tasks · {client.tasks.filter(t=>t.status==="Done").length} done</span>
+        <button onClick={() => setAdding(true)} style={{ fontSize:16, fontWeight:600, padding:"10px 24px", borderRadius:12, background:"rgba(91,141,239,0.12)", color:"#5b8def", border:"none" }}>+ New Task</button>
+      </div>
+      {adding && <div style={{ padding:"0 32px 14px", display:"flex", gap:12 }}>
+        <input autoFocus value={newTxt} onChange={e=>setNewTxt(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addT();if(e.key==="Escape")setAdding(false)}} placeholder="Describe the task..." style={{ flex:1, fontSize:16, padding:"12px 18px", borderRadius:12, background:"#1a1d2e", border:"1px solid #252839", color:"#e8eaf0", outline:"none" }}/>
+        <button onClick={addT} style={{ padding:"12px 24px", borderRadius:12, fontSize:16, fontWeight:600, background:"#5b8def", color:"white", border:"none" }}>Add</button>
+        <button onClick={()=>setAdding(false)} style={{ padding:"12px 24px", borderRadius:12, fontSize:16, background:"#1a1d2e", color:"#6b7189", border:"none" }}>Cancel</button>
+      </div>}
+      <div style={{ flex:1, overflowX:"auto", overflowY:"hidden", padding:"0 20px 20px" }}>
+        <div style={{ display:"flex", gap:16, height:"100%", minWidth:"max-content" }}>
+          {COLS.map(col => {
+            const tasks = client.tasks.filter(t=>t.status===col.id); const isOver = overCol===col.id;
+            return (
+              <div key={col.id} style={{ width:380, display:"flex", flexDirection:"column", borderRadius:16, background:isOver?"rgba(91,141,239,0.04)":"#161822", border:`1px solid ${isOver?"rgba(91,141,239,0.3)":"#1e2030"}`, transition:"all 0.2s" }}
+                onDragOver={e=>{e.preventDefault();setOverCol(col.id)}} onDragLeave={()=>setOverCol(null)} onDrop={()=>drop(col.id)}>
+                <div style={{ display:"flex", alignItems:"center", gap:12, padding:"16px 20px", borderBottom:"1px solid #1e2030" }}>
+                  <div style={{ width:12, height:12, borderRadius:6, background:col.c }}/><span style={{ fontSize:17, fontWeight:700 }}>{col.label}</span>
+                  <span style={{ fontSize:14, fontWeight:600, padding:"4px 12px", borderRadius:99, background:"rgba(107,113,137,0.15)", color:"#6b7189", marginLeft:"auto" }}>{tasks.length}</span>
+                </div>
+                <div style={{ flex:1, overflowY:"auto", padding:12 }}>
+                  {tasks.map(task => <Card key={task.id} task={task} onDrag={()=>setDragged(task)} onUpd={updT} onDel={delT} isExp={expanded===task.id} onTog={()=>setExpanded(expanded===task.id?null:task.id)}/>)}
+                  {tasks.length===0 && <div style={{ padding:"48px 0", textAlign:"center", fontSize:15, color:"#353849" }}>Drop tasks here</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Card({ task, onDrag, onUpd, onDel, isExp, onTog }) {
+  const pc = PRI[task.priority]||PRI.normal; const [tBg,tClr] = TAG_C[task.tag]||["rgba(107,113,137,0.1)","#6b7189"]; const pS = task.subtasks.filter(s=>!s.done).length;
+  return (
+    <div draggable onDragStart={onDrag} style={{ borderRadius:14, padding:18, marginBottom:12, cursor:"grab", background:"#1c1f2e", border:`1px solid ${isExp?"rgba(91,141,239,0.3)":"#252839"}` }}>
+      <div onClick={onTog} style={{ display:"flex", gap:12, cursor:"pointer" }}>
+        <div style={{ width:10, height:10, borderRadius:5, marginTop:8, flexShrink:0, background:pc }}/>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:16, lineHeight:1.5, fontWeight:500, color:task.status==="Done"?"#4a4f65":"#e8eaf0", textDecoration:task.status==="Done"?"line-through":"none" }}>{task.text}</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginTop:10 }}>
+            <span style={{ fontSize:13, fontWeight:600, padding:"4px 12px", borderRadius:99, background:tBg, color:tClr }}>{task.tag}</span>
+            {task.priority!=="normal" && <span style={{ fontSize:13, fontWeight:600, padding:"4px 12px", borderRadius:99, background:`${pc}20`, color:pc, textTransform:"capitalize" }}>{task.priority}</span>}
+            {pS>0 && <span style={{ fontSize:13, color:"#fb923c", marginLeft:"auto" }}>{pS} sub-tasks</span>}
+          </div>
+        </div>
+        <span onClick={e=>{e.stopPropagation();onDel(task.id)}} style={{ color:"#4a4f65", cursor:"pointer", fontSize:18, padding:4 }}>✕</span>
+      </div>
+      {isExp && <div style={{ marginTop:16, paddingTop:16, borderTop:"1px solid #252839" }}>
+        <div style={{ display:"flex", gap:12, marginBottom:14 }}>
+          <div style={{ flex:1 }}><div style={{ fontSize:12, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", color:"#4a4f65", marginBottom:8 }}>Status</div>
+            <select value={task.status} onChange={e=>onUpd({...task,status:e.target.value})} style={{ width:"100%", fontSize:15, padding:"10px 14px", borderRadius:10, background:"#161822", border:"1px solid #252839", color:"#e8eaf0", outline:"none" }}>{STATUSES.map(s=><option key={s}>{s}</option>)}</select></div>
+          <div style={{ flex:1 }}><div style={{ fontSize:12, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", color:"#4a4f65", marginBottom:8 }}>Priority</div>
+            <select value={task.priority} onChange={e=>onUpd({...task,priority:e.target.value})} style={{ width:"100%", fontSize:15, padding:"10px 14px", borderRadius:10, background:"#161822", border:"1px solid #252839", color:"#e8eaf0", outline:"none" }}>{["urgent","high","medium","normal"].map(p=><option key={p} value={p}>{p[0].toUpperCase()+p.slice(1)}</option>)}</select></div>
+        </div>
+        <div style={{ fontSize:12, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", color:"#4a4f65", marginBottom:8 }}>Outcome</div>
+        <textarea value={task.outcome} onChange={e=>onUpd({...task,outcome:e.target.value})} placeholder="Record outcome..." rows={3} style={{ width:"100%", fontSize:15, padding:"10px 14px", borderRadius:10, background:"#161822", border:"1px solid #252839", color:"#e8eaf0", outline:"none", resize:"none", lineHeight:1.5 }}/>
+        {task.subtasks.length>0 && <div style={{ marginTop:14 }}><div style={{ fontSize:12, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", color:"#4a4f65", marginBottom:10 }}>Sub-tasks</div>
+          {task.subtasks.map(sub => (
+            <div key={sub.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", borderRadius:10, marginBottom:6, background:sub.done?"rgba(52,211,153,0.06)":"rgba(251,146,60,0.06)" }}>
+              <input type="checkbox" checked={sub.done} onChange={()=>onUpd({...task,subtasks:task.subtasks.map(x=>x.id===sub.id?{...x,done:!x.done}:x)})} style={{ width:20, height:20, accentColor:"#34d399" }}/>
+              <span style={{ fontSize:15, color:sub.done?"#4a4f65":"#9ca3b8", textDecoration:sub.done?"line-through":"none" }}>{sub.text}</span>
+            </div>
+          ))}
+        </div>}
+      </div>}
+    </div>
+  );
+}
+
+// ═══ AI NOTES ═══
+function NotesPanel({ client, onUpdate }) {
+  const [input, setInput] = useState(""); const [loading, setLoading] = useState(false); const [copiedId, setCopiedId] = useState(null);
+  const localFormat = (raw) => {
+    const fmt = new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"});
+    const lines = raw.split(/\n/).filter(l=>l.trim());
+    const actions = [], outcomes = [], followups = [];
+    lines.forEach(l => {
+      const lower = l.toLowerCase();
+      if (lower.includes("follow up") || lower.includes("follow-up") || lower.includes("next step") || lower.includes("to do")) followups.push(l.trim());
+      else if (lower.includes("outcome") || lower.includes("result") || lower.includes("confirmed") || lower.includes("completed") || lower.includes("agreed")) outcomes.push(l.trim());
+      else actions.push(l.trim());
+    });
+    return [
+      `DATE: ${fmt}`, `CLIENT: ${client.name}`, `SERVICE TYPE: Support Coordination`, "",
+      "CONTACT/ACTION:",
+      ...(actions.length ? actions.map(a=>`  - ${a}`) : [`  - ${raw.trim()}`]),
+      "", "OUTCOME:",
+      ...(outcomes.length ? outcomes.map(o=>`  - ${o}`) : ["  - [To be recorded]"]),
+      "", "FOLLOW-UP:",
+      ...(followups.length ? followups.map(f=>`  - ${f}`) : ["  - Nil"]),
+      "", `TIME: ${lines.length <= 3 ? 15 : lines.length <= 6 ? 30 : 45} minutes`,
+      `PREPARED BY: Nico — Disability Support Link`
+    ].join("\n");
+  };
+  const submit = async () => {
+    if(!input.trim()) return; setLoading(true); let formatted;
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":import.meta.env.VITE_ANTHROPIC_KEY||"","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1000,messages:[{role:"user",content:`You are an NDIS Support Coordinator case note formatter. Format these raw notes into a professional NDIS case note.\n\nDATE: ${new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"})}\nCLIENT: ${client.name}\nSERVICE TYPE: Support Coordination\n\nUse sections: CONTACT/ACTION, OUTCOME, FOLLOW-UP, TIME.\nKeep professional, concise, NDIS audit-ready.\n\nRaw notes: ${input.trim()}\n\nReturn ONLY the formatted note.`}]})});
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json(); formatted = data.content?.map(i=>i.text||"").join("\n")||localFormat(input.trim());
+    } catch { formatted = localFormat(input.trim()); }
+    setLoading(false); onUpdate({...client,aiNotes:[...(client.aiNotes||[]),{id:uid++,raw:input.trim(),formatted,timestamp:new Date().toISOString()}]}); setInput("");
+  };
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
+      <div style={{ padding:"28px 32px", borderBottom:"1px solid #1e2030" }}>
+        <div style={{ display:"flex", gap:16 }}>
+          <div style={{ width:48, height:48, borderRadius:14, background:"linear-gradient(135deg,#a78bfa,#5b8def)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:22 }}>✦</div>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:18, fontWeight:600, marginBottom:14 }}>Quick Notes → AI-Formatted Case Notes</div>
+            <textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))submit()}} placeholder={`Type rough notes for ${client.name.split(" ")[0]}...`} rows={4} style={{ width:"100%", fontSize:16, padding:"16px 18px", borderRadius:14, background:"#1a1d2e", border:"1px solid #252839", color:"#e8eaf0", outline:"none", resize:"none", lineHeight:1.6 }}/>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:14 }}>
+              <span style={{ fontSize:14, color:"#4a4f65" }}>Ctrl+Enter to submit</span>
+              <button onClick={submit} disabled={!input.trim()||loading} style={{ fontSize:16, fontWeight:600, padding:"12px 28px", borderRadius:12, background:"linear-gradient(135deg,#a78bfa,#5b8def)", color:"white", border:"none", opacity:(!input.trim()||loading)?0.3:1 }}>{loading?"Formatting...":"✦ Format & Save"}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ flex:1, overflowY:"auto", padding:"24px 32px" }}>
+        {(!client.aiNotes?.length) ? <div style={{ textAlign:"center", padding:"64px 0", color:"#4a4f65" }}><div style={{ fontSize:48, marginBottom:16, opacity:0.3 }}>✦</div><div style={{ fontSize:18, fontWeight:500 }}>No notes yet</div><div style={{ fontSize:15, color:"#353849", marginTop:8 }}>Write rough notes and AI will format them</div></div>
+        : [...(client.aiNotes||[])].reverse().map(n => (
+          <div key={n.id} style={{ borderRadius:16, padding:24, marginBottom:16, background:"#161822", border:"1px solid #1e2030" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
+              <span style={{ fontSize:14, fontWeight:600, color:"#6b7189" }}>{new Date(n.timestamp).toLocaleString("en-AU",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</span>
+              <div style={{ display:"flex", gap:10 }}>
+                <span onClick={()=>{copyText(n.formatted);setCopiedId(n.id);setTimeout(()=>setCopiedId(null),1500)}} style={{ cursor:"pointer", color:copiedId===n.id?"#34d399":"#6b7189", fontSize:16 }}>{copiedId===n.id?"✓ Copied":"⎘ Copy"}</span>
+                <span onClick={()=>onUpdate({...client,aiNotes:client.aiNotes.filter(x=>x.id!==n.id)})} style={{ cursor:"pointer", color:"#4a4f65", fontSize:16 }}>✕</span>
+              </div>
+            </div>
+            <pre style={{ fontSize:15, lineHeight:1.65, whiteSpace:"pre-wrap", color:"#9ca3b8", fontFamily:"inherit", margin:0 }}>{n.formatted}</pre>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══ WEEKLY ═══
+function WeeklyPanel({ clients }) {
+  const [copied, setCopied] = useState(null); const [sub, setSub] = useState("summary");
+  const sTxt = genWeeklySummary(clients), nTxt = genCaseNotes(clients);
+  const copy = (t,id) => { copyText(t); setCopied(id); setTimeout(()=>setCopied(null),2000); };
+  const dl = (t,fn) => { const b = new Blob([t],{type:"text/plain"}); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href=u; a.download=fn; a.click(); URL.revokeObjectURL(u); };
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 32px", borderBottom:"1px solid #1e2030", flexWrap:"wrap", gap:12 }}>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={()=>setSub("summary")} style={{ fontSize:15, fontWeight:600, padding:"8px 20px", borderRadius:10, background:sub==="summary"?"rgba(52,211,153,0.12)":"transparent", color:sub==="summary"?"#34d399":"#6b7189", border:"none" }}>Weekly Overview</button>
+          <button onClick={()=>setSub("notes")} style={{ fontSize:15, fontWeight:600, padding:"8px 20px", borderRadius:10, background:sub==="notes"?"rgba(167,139,250,0.12)":"transparent", color:sub==="notes"?"#a78bfa":"#6b7189", border:"none" }}>Batch Case Notes</button>
+        </div>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={()=>copy(sub==="summary"?sTxt:nTxt,sub)} style={{ fontSize:15, fontWeight:600, padding:"10px 24px", borderRadius:12, background:copied===sub?"rgba(52,211,153,0.15)":"rgba(91,141,239,0.12)", color:copied===sub?"#34d399":"#5b8def", border:"none" }}>{copied===sub?"✓ Copied!":"⎘ Copy All"}</button>
+          <button onClick={()=>dl(sub==="summary"?sTxt:nTxt,`${sub}-${new Date().toISOString().split("T")[0]}.txt`)} style={{ fontSize:15, fontWeight:600, padding:"10px 24px", borderRadius:12, background:"rgba(251,146,60,0.12)", color:"#fb923c", border:"none" }}>↓ Download</button>
+        </div>
+      </div>
+      <div style={{ flex:1, overflowY:"auto", padding:32 }}>
+        <div style={{ fontSize:14, color:"#6b7189", marginBottom:16 }}>{sub==="summary"?"All clients, all tasks — grouped by status.":"Auto-generated case notes for clients with activity."}</div>
+        <pre style={{ fontSize:15, lineHeight:1.65, whiteSpace:"pre-wrap", padding:28, borderRadius:16, background:"#161822", border:"1px solid #1e2030", color:"#9ca3b8", fontFamily:"inherit", margin:0 }}>{sub==="summary"?sTxt:nTxt}</pre>
+      </div>
+    </div>
+  );
+}
+
+// ═══ CLIENT SUMMARY ═══
+function SummaryPanel({ client }) {
+  const [copied, setCopied] = useState(false);
+  const today = new Date().toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  const L = [`CLIENT SUMMARY — ${client.name}`,`Date: ${today}`,"SC: Nico | Disability Support Link",""];
+  if(client.note) L.push(`Context: ${client.note}`,"");
+  const byS={}; client.tasks.forEach(t=>{if(!byS[t.status])byS[t.status]=[];byS[t.status].push(t)});
+  Object.entries(byS).forEach(([st,ts])=>{ L.push(`── ${st.toUpperCase()} ──`); ts.forEach(t=>{L.push(`${st==="Done"?"✓":"○"} ${t.text}`);if(t.outcome)L.push(`  → ${t.outcome}`);t.subtasks.filter(s=>!s.done).forEach(s=>L.push(`  • ${s.text}`))});L.push(""); });
+  const txt = L.join("\n").trim();
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"16px 32px", borderBottom:"1px solid #1e2030" }}>
+        <span style={{ fontSize:16, fontWeight:600, color:"#6b7189" }}>Summary — {client.name}</span>
+        <button onClick={()=>{copyText(txt);setCopied(true);setTimeout(()=>setCopied(false),1500)}} style={{ fontSize:16, fontWeight:600, padding:"10px 24px", borderRadius:12, background:copied?"rgba(52,211,153,0.15)":"rgba(91,141,239,0.12)", color:copied?"#34d399":"#5b8def", border:"none" }}>{copied?"✓ Copied!":"⎘ Copy"}</button>
+      </div>
+      <div style={{ flex:1, overflowY:"auto", padding:32 }}>
+        <pre style={{ fontSize:15, lineHeight:1.65, whiteSpace:"pre-wrap", padding:28, borderRadius:16, background:"#161822", border:"1px solid #1e2030", color:"#9ca3b8", fontFamily:"inherit", margin:0 }}>{txt}</pre>
+      </div>
+    </div>
+  );
+}
+
+function AddForm({ onAdd, onClose }) {
+  const [name, setName] = useState(""); const [note, setNote] = useState("");
+  const add = () => { if(!name.trim()) return; onAdd({name:name.trim(),priority:"normal",tags:["Action Item"],note:note.trim(),tasks:[],aiNotes:[]}); };
+  return (<div>
+    <div style={{ marginBottom:16 }}><div style={{ fontSize:13, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", color:"#4a4f65", marginBottom:8 }}>Client Name *</div>
+      <input autoFocus value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="Full name" style={{ width:"100%", fontSize:16, padding:"14px 18px", borderRadius:12, background:"#161822", border:"1px solid #252839", color:"#e8eaf0", outline:"none" }}/></div>
+    <div style={{ marginBottom:24 }}><div style={{ fontSize:13, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", color:"#4a4f65", marginBottom:8 }}>Context Note</div>
+      <input value={note} onChange={e=>setNote(e.target.value)} placeholder="Brief context (optional)" style={{ width:"100%", fontSize:16, padding:"14px 18px", borderRadius:12, background:"#161822", border:"1px solid #252839", color:"#e8eaf0", outline:"none" }}/></div>
+    <div style={{ display:"flex", gap:12 }}>
+      <button onClick={add} disabled={!name.trim()} style={{ flex:1, padding:"14px 0", borderRadius:12, fontSize:16, fontWeight:600, background:"#5b8def", color:"white", border:"none", opacity:name.trim()?1:0.3 }}>Add Client</button>
+      <button onClick={onClose} style={{ flex:1, padding:"14px 0", borderRadius:12, fontSize:16, fontWeight:600, background:"#252839", color:"#6b7189", border:"none" }}>Cancel</button>
+    </div>
+  </div>);
+}
