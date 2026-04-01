@@ -251,7 +251,8 @@ export default function App() {
   const startDay = () => { const s = createDaySnapshot(clients); setDaySnap(s); saveDaySnap(s); showToast("Day started — snapshot saved"); };
   const endDay = () => { setDaySnap(null); localStorage.removeItem(DAY_SNAP_KEY); showToast("Day ended — snapshot cleared"); };
 
-  const filtered = clients
+  const filtered = [...clients]
+    .sort((a, b) => a.name.localeCompare(b.name))
     .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()))
     .filter(c => {
       if (filter==="Urgent") return c.tasks.some(t=>t.priority==="urgent"&&t.status!=="Done");
@@ -308,6 +309,18 @@ export default function App() {
               {["All","Urgent","Overdue","Active"].map(f => (<button key={f} onClick={() => setFilter(f)} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:10, background:filter===f?"rgba(91,141,239,0.15)":"transparent", color:filter===f?"#5b8def":"#6b7189", border:filter===f?"1px solid rgba(91,141,239,0.3)":"1px solid transparent" }}>{f}</button>))}
             </div>
           </div>
+          {client && (
+            <div style={{ padding:"0 20px 12px", borderBottom:"1px solid #1e2030" }}>
+              <SidebarNotes
+                client={client}
+                onUpdate={upd}
+                scratchNotes={scratchNotes}
+                setScratchNotes={setScratchNotes}
+                daySnap={daySnap}
+                allClients={clients}
+              />
+            </div>
+          )}
           <div style={{ flex:1, overflowY:"auto", padding:"4px 12px" }}>
             {filtered.map(c => {
               const isSel = c.name===sel, hasUrg = c.tasks.some(t=>t.priority==="urgent"&&t.status!=="Done");
@@ -551,6 +564,81 @@ function NotesPanel({ client, onUpdate, scratchNotes, setScratchNotes, daySnap, 
             </div>
           ))}
         </div>}
+      </div>
+    </div>
+  );
+}
+
+// ═══ SIDEBAR NOTES (PER-CLIENT SCRATCHPAD) ═══
+function SidebarNotes({ client, onUpdate, scratchNotes, setScratchNotes, daySnap, allClients }) {
+  const [loading, setLoading] = useState(false);
+  const scratch = scratchNotes[client.name] || "";
+  const updateScratch = (val) => setScratchNotes(prev => ({ ...prev, [client.name]: val }));
+
+  const dayDiff = daySnap ? computeDayDiff(daySnap, allClients) : [];
+  const clientDiff = dayDiff.filter(c => c.client === client.name);
+  const diffText = formatDiffText(clientDiff);
+
+  const localFormat = (raw) => {
+    const fmt = new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"});
+    const lines = raw.split(/\n/).filter(l=>l.trim());
+    const actions = [], outcomes = [], followups = [];
+    lines.forEach(l => { const lo = l.toLowerCase(); if (lo.includes("follow up")||lo.includes("follow-up")||lo.includes("next step")||lo.includes("to do")) followups.push(l.trim()); else if (lo.includes("outcome")||lo.includes("result")||lo.includes("confirmed")||lo.includes("completed")||lo.includes("agreed")) outcomes.push(l.trim()); else actions.push(l.trim()); });
+    const parts = [`DATE: ${fmt}`, `CLIENT: ${client.name}`, `SERVICE TYPE: Support Coordination`, "", "CONTACT/ACTION:", ...(actions.length ? actions.map(a=>`  - ${a}`) : [`  - ${raw.trim()}`]), "", "OUTCOME:", ...(outcomes.length ? outcomes.map(o=>`  - ${o}`) : ["  - [To be recorded]"]), "", "FOLLOW-UP:", ...(followups.length ? followups.map(f=>`  - ${f}`) : ["  - Nil"])];
+    if (diffText) parts.push("", diffText);
+    parts.push("", `TIME: ${lines.length <= 3 ? 15 : lines.length <= 6 ? 30 : 45} minutes`, `PREPARED BY: Nico — Disability Support Link`);
+    return parts.join("\n");
+  };
+
+  const formatWithAI = async () => {
+    if (!scratch.trim()) return; setLoading(true); let formatted;
+    const diffCtx = diffText ? `\n\nTASK EVOLUTION TODAY:\n${diffText}` : "";
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", { method:"POST", headers:{"Content-Type":"application/json","x-api-key":import.meta.env.VITE_ANTHROPIC_KEY||"","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1500,messages:[{role:"user",content:`You are an NDIS Support Coordinator case note formatter. Format these raw notes into a professional NDIS case note.\n\nDATE: ${new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"})}\nCLIENT: ${client.name}\nSERVICE TYPE: Support Coordination\nCLIENT CONTEXT: ${client.note || "N/A"}\n\nUse sections: CONTACT/ACTION, OUTCOME, FOLLOW-UP, TASK PROGRESS (if task evolution data provided), TIME.\nKeep professional, concise, NDIS audit-ready. Integrate the task evolution data naturally.\n\nRaw notes:\n${scratch.trim()}${diffCtx}\n\nReturn ONLY the formatted note.`}]})});
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json(); formatted = data.content?.map(i=>i.text||"").join("\n") || localFormat(scratch.trim());
+    } catch { formatted = localFormat(scratch.trim()); }
+    setLoading(false);
+    onUpdate({...client, aiNotes:[...(client.aiNotes||[]),{id:uid++, raw:scratch.trim(), formatted, timestamp:new Date().toISOString(), hasDiff:clientDiff.length>0}]});
+    updateScratch("");
+  };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:4 }}>
+      {daySnap && clientDiff.length > 0 && (
+        <div style={{ padding:"10px 12px", borderRadius:10, background:"rgba(52,211,153,0.06)", border:"1px solid rgba(52,211,153,0.15)" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#34d399", marginBottom:4, textTransform:"uppercase", letterSpacing:"0.05em" }}>Task changes today</div>
+          <div style={{ fontSize:12, color:"#9ca3b8", lineHeight:1.5, maxHeight:80, overflowY:"auto" }}>
+            {clientDiff.map((c,i) => (
+              <div key={i} style={{ marginBottom:2 }}>
+                {c.type==="status" && <>→ <span style={{color:"#e8eaf0"}}>{c.text.substring(0,40)}</span>: {c.from} → <span style={{color:"#34d399"}}>{c.to}</span></>}
+                {c.type==="outcome" && <>→ Outcome: <span style={{color:"#e8eaf0"}}>{c.text.substring(0,40)}</span></>}
+                {c.type==="subtasks" && <>→ {c.completed} subtask(s) done on <span style={{color:"#e8eaf0"}}>{c.text.substring(0,40)}</span></>}
+                {c.type==="added" && <>+ New: <span style={{color:"#e8eaf0"}}>{c.text.substring(0,40)}</span></>}
+                {c.type==="removed" && <>✕ Removed: <span style={{color:"#e8eaf0"}}>{c.text.substring(0,40)}</span></>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <textarea
+        value={scratch}
+        onChange={e=>updateScratch(e.target.value)}
+        placeholder={`Quick notes for ${client.name.split(" ")[0]}...\nSaved automatically.`}
+        style={{ width:"100%", minHeight:110, fontSize:13, padding:"10px 12px", borderRadius:10, background:"#1a1d2e", border:"1px solid #252839", color:"#e8eaf0", outline:"none", resize:"vertical", lineHeight:1.5, fontFamily:"inherit" }}
+      />
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <span style={{ fontSize:11, color:"#353849" }}>
+          {scratch.trim() ? "Auto-saved per client" : "Type notes — auto-saves"}
+        </span>
+        <button
+          onClick={formatWithAI}
+          disabled={loading || !scratch.trim()}
+          style={{ fontSize:11, fontWeight:600, padding:"6px 10px", borderRadius:999, background:"linear-gradient(135deg,#a78bfa,#5b8def)", color:"white", border:"none", opacity:loading || !scratch.trim()?0.5:1 }}
+        >
+          {loading ? "Formatting..." : "✦ AI tidy note"}
+        </button>
       </div>
     </div>
   );
