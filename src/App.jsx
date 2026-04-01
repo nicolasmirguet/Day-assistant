@@ -138,7 +138,13 @@ const COLS = [
   { id: "Done", label: "Done", c: "#34d399" },
 ];
 const STATUSES = ["Pending","In Progress","Done","No Answer","Follow-Up Required"];
-const PRI = { urgent:"#f87171", high:"#fb923c", medium:"#fbbf24", normal:"#6b7189" };
+// Priority colours: orange = urgent, blue = normal, green = non‑urgent (high/medium)
+const PRI = {
+  urgent: "#fb923c",   // orange
+  normal: "#60a5fa",   // blue
+  high:   "#22c55e",   // green
+  medium: "#22c55e",   // green
+};
 const TAG_C = {
   "Overdue":["rgba(248,113,113,0.1)","#fb7185"], "Budget Alert":["rgba(248,113,113,0.08)","#f87171"],
   "Check-in Due":["rgba(167,139,250,0.1)","#a78bfa"], "New Client":["rgba(52,211,153,0.1)","#34d399"],
@@ -240,6 +246,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [daySnap, setDaySnap] = useState(() => loadDaySnap());
   const [scratchNotes, setScratchNotesRaw] = useState(() => loadScratch());
+  const [recentClients, setRecentClients] = useState([]);
 
   const setScratchNotes = useCallback((u) => { setScratchNotesRaw(p => { const n = typeof u === "function" ? u(p) : u; saveScratch(n); return n; }); }, []);
   const setClients = useCallback((u) => { setClientsRaw(p => { const n = typeof u === "function" ? u(p) : u; saveData(n); return n; }); }, []);
@@ -250,6 +257,35 @@ export default function App() {
 
   const startDay = () => { const s = createDaySnapshot(clients); setDaySnap(s); saveDaySnap(s); showToast("Day started — snapshot saved"); };
   const endDay = () => { setDaySnap(null); localStorage.removeItem(DAY_SNAP_KEY); showToast("Day ended — snapshot cleared"); };
+
+  // Track recent clients (last 5)
+  useEffect(() => {
+    if (!sel) return;
+    setRecentClients(prev => {
+      const next = [sel, ...prev.filter(n => n !== sel)];
+      return next.slice(0, 5);
+    });
+  }, [sel]);
+
+  // Keyboard client switcher: Ctrl+K
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        const q = window.prompt("Jump to client (type part of name):", "");
+        if (!q) return;
+        const match = clients.find(c => c.name.toLowerCase().includes(q.toLowerCase()));
+        if (match) {
+          setSel(match.name);
+          setTab("kanban");
+        } else {
+          showToast("No client found for that search");
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [clients, showToast, setSel, setTab]);
 
   const filtered = [...clients]
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -267,95 +303,134 @@ export default function App() {
   const resetData = () => { if (window.confirm("Reset all data to defaults?")) { setClients(DEFAULT_CLIENTS); setSel(DEFAULT_CLIENTS[0].name); showToast("Data reset"); } };
 
   return (
-    <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:"#0f1117", fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif", color:"#e8eaf0" }}>
+    <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:"#0b0f19", fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif", color:"#f9fafb" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         *{margin:0;padding:0;box-sizing:border-box} ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a2d3e;border-radius:10px}
         button{font-family:inherit;cursor:pointer} select,input,textarea{font-family:inherit} @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
-      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:99, padding:"14px 24px", borderRadius:12, fontSize:15, fontWeight:600, background:"rgba(52,211,153,0.15)", color:"#34d399", border:"1px solid rgba(52,211,153,0.3)" }}>{toast}</div>}
+      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:99, padding:"14px 24px", borderRadius:12, fontSize:15, fontWeight:600, background:"rgba(15,23,42,0.95)", color:"#22c55e", border:"1px solid rgba(34,197,94,0.6)", boxShadow:"0 10px 30px rgba(15,23,42,0.6)" }}>{toast}</div>}
 
       {/* SIDEBAR */}
-      <div style={{ display:"flex", flexDirection:"column", width:collapsed?80:340, background:"#131520", borderRight:"1px solid #1e2030", flexShrink:0, transition:"width 0.25s ease" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:14, padding:"20px", borderBottom:"1px solid #1e2030" }}>
-          {!collapsed && <><div style={{ width:44, height:44, borderRadius:12, background:"linear-gradient(135deg,#5b8def,#a78bfa)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>◈</div>
+      <div style={{ display:"flex", flexDirection:"column", width:collapsed?80:340, background:"#050816", borderRight:"1px solid #111827", flexShrink:0, transition:"width 0.25s ease" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:14, padding:"20px", borderBottom:"1px solid #111827" }}>
+          {!collapsed && <><div style={{ width:44, height:44, borderRadius:12, background:"#111827", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, color:"#3b82f6", border:"1px solid #1f2937" }}>◈</div>
             <div style={{ flex:1 }}><div style={{ fontSize:20, fontWeight:800, letterSpacing:"-0.02em" }}>DSL Tracker</div>
               <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}><span style={{ fontSize:14, color:"#6b7189" }}>Support Coordination</span>
-                <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:99, background:"rgba(52,211,153,0.12)", color:"#34d399" }}><span style={{ width:7, height:7, borderRadius:4, background:"#34d399", display:"inline-block" }}/>Saved</span></div></div></>}
+                <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:99, background:"rgba(34,197,94,0.16)", color:"#22c55e" }}><span style={{ width:7, height:7, borderRadius:4, background:"#22c55e", display:"inline-block" }}/>Saved</span></div></div></>}
           <button onClick={() => setCollapsed(!collapsed)} style={{ background:"none", border:"none", color:"#6b7189", padding:8, fontSize:18 }}>{collapsed?"▸":"◂"}</button>
         </div>
 
         {!collapsed && <>
           {/* DAY TRACKER */}
-          <div style={{ padding:"12px 20px", borderBottom:"1px solid #1e2030" }}>
+          <div style={{ padding:"12px 20px", borderBottom:"1px solid #111827" }}>
             {!daySnap ? (
-              <button onClick={startDay} style={{ width:"100%", padding:"12px 0", borderRadius:12, fontSize:15, fontWeight:700, background:"linear-gradient(135deg,#34d399,#2dd4bf)", color:"#0f1117", border:"none" }}>▶ Start Day</button>
+              <button onClick={startDay} style={{ width:"100%", padding:"12px 0", borderRadius:12, fontSize:15, fontWeight:700, background:"#22c55e", color:"#020617", border:"none", boxShadow:"0 6px 20px rgba(34,197,94,0.35)" }}>▶ Start Day</button>
             ) : (
               <div>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ width:8, height:8, borderRadius:4, background:"#34d399", animation:"pulse 2s infinite" }}/><span style={{ fontSize:13, fontWeight:600, color:"#34d399" }}>Day Active</span></div>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ width:8, height:8, borderRadius:4, background:"#22c55e", animation:"pulse 2s infinite" }}/><span style={{ fontSize:13, fontWeight:600, color:"#22c55e" }}>Day Active</span></div>
                   <span style={{ fontSize:12, color:"#4a4f65" }}>{new Date(daySnap.timestamp).toLocaleTimeString("en-AU",{hour:"2-digit",minute:"2-digit"})}</span>
                 </div>
-                <button onClick={endDay} style={{ width:"100%", padding:"10px 0", borderRadius:10, fontSize:14, fontWeight:600, background:"rgba(248,113,113,0.1)", color:"#f87171", border:"1px solid rgba(248,113,113,0.2)" }}>■ End Day</button>
+                <button onClick={endDay} style={{ width:"100%", padding:"10px 0", borderRadius:10, fontSize:14, fontWeight:600, background:"rgba(248,113,113,0.12)", color:"#fca5a5", border:"1px solid rgba(248,113,113,0.35)" }}>■ End Day</button>
               </div>
             )}
           </div>
 
-          <div style={{ padding:"12px 20px", borderBottom:"1px solid #1e2030", display:"flex", gap:10, flexWrap:"wrap" }}>
-            <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(52,211,153,0.12)", color:"#34d399" }}>✓ {doneN}/{all.length}</span>
-            {urgN>0 && <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(248,113,113,0.12)", color:"#f87171" }}>⚠ {urgN}</span>}
+          <div style={{ padding:"12px 20px", borderBottom:"1px solid #111827", display:"flex", gap:10, flexWrap:"wrap" }}>
+            <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(34,197,94,0.18)", color:"#22c55e" }}>✓ {doneN}/{all.length}</span>
+            {urgN>0 && <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(251,146,60,0.18)", color:"#fb923c" }}>⚠ {urgN}</span>}
           </div>
-          <div style={{ padding:"16px 20px", borderBottom:"1px solid #1e2030" }}>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients..." style={{ width:"100%", fontSize:16, padding:"14px 18px", borderRadius:12, background:"#1a1d2e", border:"1px solid #252839", color:"#e8eaf0", outline:"none" }}/>
+          <div style={{ padding:"16px 20px", borderBottom:"1px solid #111827" }}>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients..." style={{ width:"100%", fontSize:16, padding:"14px 18px", borderRadius:12, background:"#020617", border:"1px solid #1e293b", color:"#f9fafb", outline:"none" }}/>
             <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
               {["All","Urgent","Overdue","Active"].map(f => (<button key={f} onClick={() => setFilter(f)} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:10, background:filter===f?"rgba(91,141,239,0.15)":"transparent", color:filter===f?"#5b8def":"#6b7189", border:filter===f?"1px solid rgba(91,141,239,0.3)":"1px solid transparent" }}>{f}</button>))}
             </div>
+            {recentClients.length > 0 && (
+              <div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:6 }}>
+                {recentClients.map(name => (
+                  <button
+                    key={name}
+                    onClick={() => { setSel(name); setTab("kanban"); }}
+                    style={{ fontSize:12, padding:"4px 10px", borderRadius:999, border:"none", background:"rgba(30,64,175,0.4)", color:"#bfdbfe", fontWeight:500 }}
+                  >
+                    {name.split(" ").slice(0,2).join(" ")}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div style={{ flex:1, overflowY:"auto", padding:"4px 12px" }}>
             {filtered.map(c => {
               const isSel = c.name===sel, hasUrg = c.tasks.some(t=>t.priority==="urgent"&&t.status!=="Done");
               const dn = c.tasks.filter(t=>t.status==="Done").length, tot = c.tasks.length, pct = tot>0?Math.round((dn/tot)*100):0;
+              const overdueN = c.tasks.filter(t=>t.tag==="Overdue" && t.status!=="Done").length;
+              const followN = c.tasks.filter(t=>t.status==="Follow-Up Required").length;
               return (
-                <div key={c.name} onClick={() => setSel(c.name)} style={{ padding:"14px 16px", borderRadius:14, marginBottom:4, cursor:"pointer", background:isSel?"rgba(91,141,239,0.1)":"transparent", borderLeft:isSel?"3px solid #5b8def":"3px solid transparent", transition:"all 0.15s" }}>
+                <div key={c.name} onClick={() => setSel(c.name)} style={{ padding:"14px 16px", borderRadius:14, marginBottom:4, cursor:"pointer", background:isSel?"rgba(15,23,42,0.95)":"transparent", borderLeft:isSel?"3px solid #3b82f6":"3px solid transparent", transition:"all 0.15s" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-                    <div style={{ width:44, height:44, borderRadius:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, flexShrink:0, background:hasUrg?"rgba(248,113,113,0.15)":"rgba(91,141,239,0.12)", color:hasUrg?"#f87171":"#5b8def" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
+                    <div style={{ width:44, height:44, borderRadius:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, flexShrink:0, background:hasUrg?"rgba(251,146,60,0.18)":"rgba(37,99,235,0.18)", color:hasUrg?"#fb923c":"#60a5fa" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:16, fontWeight:600, color:isSel?"#e8eaf0":"#9ca3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.name}</span>{hasUrg && <span style={{ fontSize:14, color:"#f87171" }}>⚠</span>}</div>
-                      <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:8 }}><div style={{ flex:1, height:6, borderRadius:3, background:"#252839", overflow:"hidden" }}><div style={{ height:"100%", borderRadius:3, width:`${pct}%`, background:pct===100?"#34d399":"#5b8def", transition:"width 0.3s" }}/></div><span style={{ fontSize:14, color:"#6b7189" }}>{dn}/{tot}</span></div>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ fontSize:16, fontWeight:600, color:isSel?"#f9fafb":"#e5e7eb", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.name}</span>
+                        {hasUrg && <span style={{ fontSize:14, color:"#fb923c" }}>⚠</span>}
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:8 }}>
+                        <div style={{ flex:1, height:6, borderRadius:3, background:"#020617", overflow:"hidden" }}>
+                          <div style={{ height:"100%", borderRadius:3, width:`${pct}%`, background:pct===100?"#22c55e":"#3b82f6", transition:"width 0.3s" }}/>
+                        </div>
+                        <span style={{ fontSize:14, color:"#6b7280" }}>{dn}/{tot}</span>
+                      </div>
+                      <div style={{ display:"flex", gap:10, marginTop:6, fontSize:12 }}>
+                        {overdueN>0 && <span style={{ color:"#fb923c" }}>⚠ {overdueN} overdue</span>}
+                        {dn>0 && <span style={{ color:"#22c55e" }}>✓ {dn} done</span>}
+                        {followN>0 && <span style={{ color:"#3b82f6" }}>⏱ {followN} follow‑up</span>}
+                      </div>
                     </div>
                   </div>
                 </div>
               );
             })}
           </div>
-          <div style={{ padding:"12px 20px", borderTop:"1px solid #1e2030", display:"flex", flexDirection:"column", gap:8 }}>
-            <button onClick={() => setShowAdd(true)} style={{ width:"100%", padding:"14px 0", borderRadius:12, fontSize:16, fontWeight:600, background:"rgba(91,141,239,0.12)", color:"#5b8def", border:"none" }}>+ Add Client</button>
+          <div style={{ padding:"12px 20px", borderTop:"1px solid #111827", display:"flex", flexDirection:"column", gap:8 }}>
+            <button onClick={() => setShowAdd(true)} style={{ width:"100%", padding:"14px 0", borderRadius:12, fontSize:16, fontWeight:600, background:"#1d4ed8", color:"#e5edff", border:"none", boxShadow:"0 8px 24px rgba(37,99,235,0.45)" }}>+ Add Client</button>
             <div style={{ display:"flex", gap:8 }}>
-              <button onClick={() => { exportJSON(clients); showToast("Exported"); }} style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(52,211,153,0.1)", color:"#34d399", border:"none" }}>↓ Export</button>
-              <label style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(167,139,250,0.1)", color:"#a78bfa", textAlign:"center", cursor:"pointer" }}>↑ Import<input type="file" accept=".json" onChange={handleImport} style={{ display:"none" }}/></label>
-              <button onClick={resetData} style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(248,113,113,0.08)", color:"#f87171", border:"none" }}>↺ Reset</button>
+              <button onClick={() => { exportJSON(clients); showToast("Exported"); }} style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(34,197,94,0.14)", color:"#22c55e", border:"none" }}>↓ Export</button>
+              <label style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(59,130,246,0.14)", color:"#60a5fa", textAlign:"center", cursor:"pointer" }}>↑ Import<input type="file" accept=".json" onChange={handleImport} style={{ display:"none" }}/></label>
+              <button onClick={resetData} style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(248,113,113,0.12)", color:"#fca5a5", border:"none" }}>↺ Reset</button>
             </div>
           </div>
         </>}
-        {collapsed && <div style={{ flex:1, overflowY:"auto", padding:"12px 0" }}>{filtered.map(c => <div key={c.name} onClick={() => setSel(c.name)} title={c.name} style={{ display:"flex", justifyContent:"center", padding:"8px 0", cursor:"pointer" }}><div style={{ width:48, height:48, borderRadius:24, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, background:c.name===sel?"rgba(91,141,239,0.2)":"rgba(91,141,239,0.08)", color:c.name===sel?"#5b8def":"#6b7189", border:c.name===sel?"3px solid #5b8def":"3px solid transparent" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div></div>)}</div>}
+        {collapsed && <div style={{ flex:1, overflowY:"auto", padding:"12px 0" }}>{filtered.map(c => <div key={c.name} onClick={() => setSel(c.name)} title={c.name} style={{ display:"flex", justifyContent:"center", padding:"8px 0", cursor:"pointer" }}><div style={{ width:48, height:48, borderRadius:24, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, background:c.name===sel?"rgba(37,99,235,0.32)":"rgba(15,23,42,0.9)", color:c.name===sel?"#bfdbfe":"#6b7280", border:c.name===sel?"3px solid #3b82f6":"1px solid #1f2937" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div></div>)}</div>}
       </div>
 
       {/* MAIN */}
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
         {client ? <>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 32px", background:"#131520", borderBottom:"1px solid #1e2030", flexWrap:"wrap", gap:12 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 32px", background:"#020617", borderBottom:"1px solid #111827", flexWrap:"wrap", gap:12 }}>
             <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-              <div style={{ width:52, height:52, borderRadius:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, background:client.priority==="urgent"?"rgba(248,113,113,0.15)":"rgba(91,141,239,0.12)", color:client.priority==="urgent"?"#f87171":"#5b8def" }}>{client.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
-              <div><div style={{ fontSize:22, fontWeight:700 }}>{client.name}</div><div style={{ fontSize:15, color:"#6b7189", marginTop:4, maxWidth:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{client.note}</div></div>
+              <div style={{ width:52, height:52, borderRadius:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, background:client.priority==="urgent"?"rgba(251,146,60,0.18)":"rgba(37,99,235,0.22)", color:client.priority==="urgent"?"#fb923c":"#60a5fa" }}>{client.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
+              <div><div style={{ fontSize:22, fontWeight:700 }}>{client.name}</div><div style={{ fontSize:15, color:"#6b7280", marginTop:4, maxWidth:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{client.note}</div></div>
             </div>
             <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
-              {client.tags.map(t => { const [bg,clr]=TAG_C[t]||["rgba(107,113,137,0.1)","#6b7189"]; return <span key={t} style={{ fontSize:14, fontWeight:600, padding:"6px 16px", borderRadius:99, background:bg, color:clr }}>{t}</span>; })}
+              {client.tags.map(t => { const [bg,clr]=TAG_C[t]||["rgba(31,41,55,0.9)","#9ca3af"]; return <span key={t} style={{ fontSize:13, fontWeight:600, padding:"5px 14px", borderRadius:999, background:bg, color:clr }}>{t}</span>; })}
             </div>
           </div>
-          <div style={{ display:"flex", gap:6, padding:"14px 32px", borderBottom:"1px solid #1e2030", background:"#0f1117", flexWrap:"wrap" }}>
-            {[{id:"kanban",l:"◫ Tasks"},{id:"weekly",l:"📋 Weekly Summary"},{id:"summary",l:"⊞ Client Summary"}].map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{ fontSize:16, fontWeight:600, padding:"10px 22px", borderRadius:10, background:tab===t.id?"rgba(91,141,239,0.12)":"transparent", color:tab===t.id?"#5b8def":"#6b7189", border:"none", transition:"all 0.15s" }}>{t.l}</button>
-            ))}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, padding:"14px 32px", borderBottom:"1px solid #111827", background:"#020617", flexWrap:"wrap" }}>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              {[{id:"today",l:"☀ My Day"},{id:"kanban",l:"◫ Tasks"},{id:"weekly",l:"📋 Weekly Summary"},{id:"summary",l:"⊞ Client Summary"}].map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)} style={{ fontSize:15, fontWeight:600, padding:"9px 18px", borderRadius:999, background:tab===t.id?"rgba(37,99,235,0.24)":"transparent", color:tab===t.id?"#bfdbfe":"#6b7280", border:"none", transition:"all 0.15s" }}>{t.l}</button>
+              ))}
+            </div>
+            {tab==="kanban" && (
+              <button
+                onClick={() => setAddingTask(true)}
+                style={{ fontSize:14, fontWeight:600, padding:"9px 18px", borderRadius:999, background:"#2563eb", color:"#e5edff", border:"none", boxShadow:"0 4px 16px rgba(37,99,235,0.55)" }}
+              >
+                + New Task
+              </button>
+            )}
           </div>
-          <div style={{ flex:1, overflow:"hidden", background:"#0f1117" }}>
+          <div style={{ flex:1, overflow:"hidden", background:"#0b0f19" }}>
+            {tab==="today" && <TodayPanel clients={clients} onJumpClient={name => { setSel(name); setTab("kanban"); }}/>}
             {tab==="kanban" && (
               <div style={{ display:"flex", height:"100%" }}>
                 <div style={{ flex:2, minWidth:0 }}>
@@ -369,11 +444,11 @@ export default function App() {
             {tab==="weekly" && <WeeklyPanel clients={clients}/>}
             {tab==="summary" && <SummaryPanel client={client}/>}
           </div>
-        </> : <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", color:"#4a4f65", fontSize:20 }}>Select a client</div>}
+        </> : <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", color:"#4b5563", fontSize:20 }}>Select a client</div>}
       </div>
 
       {showAdd && <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:50 }}>
-        <div style={{ background:"#1c1f2e", border:"1px solid #252839", borderRadius:20, padding:36, width:"100%", maxWidth:480 }}>
+        <div style={{ background:"#020617", border:"1px solid #1e293b", borderRadius:20, padding:36, width:"100%", maxWidth:480 }}>
           <div style={{ fontSize:22, fontWeight:700, marginBottom:24 }}>Add Client</div>
           <AddForm onAdd={nc => { setClients(cs => [...cs, nc]); setSel(nc.name); setShowAdd(false); }} onClose={() => setShowAdd(false)}/>
         </div>
@@ -393,15 +468,7 @@ function Kanban({ client, onUpdate, adding, setAdding }) {
     <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 32px" }}>
         <span style={{ fontSize:16, fontWeight:600, color:"#6b7189" }}>{client.tasks.length} tasks · {client.tasks.filter(t=>t.status==="Done").length} done</span>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <span style={{ fontSize:14, color:"#4a4f65" }}>Drag tasks between columns</span>
-          <button
-            onClick={() => setAdding(true)}
-            style={{ fontSize:14, fontWeight:600, padding:"8px 18px", borderRadius:999, background:"linear-gradient(135deg,#5b8def,#a78bfa)", color:"white", border:"none", boxShadow:"0 2px 10px rgba(91,141,239,0.3)" }}
-          >
-            + New Task
-          </button>
-        </div>
+        <span style={{ fontSize:14, color:"#4a4f65" }}>Drag tasks between columns</span>
       </div>
       {adding && <div style={{ padding:"0 32px 14px", display:"flex", gap:12 }}>
         <input autoFocus value={newTxt} onChange={e=>setNewTxt(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addT();if(e.key==="Escape")setAdding(false)}} placeholder="Describe the task..." style={{ flex:1, fontSize:16, padding:"12px 18px", borderRadius:12, background:"#1a1d2e", border:"1px solid #252839", color:"#e8eaf0", outline:"none" }}/>
@@ -499,11 +566,29 @@ function NotesPanel({ client, onUpdate, scratchNotes, setScratchNotes, daySnap, 
   const localFormat = (raw) => {
     const fmt = new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"});
     const lines = raw.split(/\n/).filter(l=>l.trim());
-    const actions = [], outcomes = [], followups = [];
-    lines.forEach(l => { const lo = l.toLowerCase(); if (lo.includes("follow up")||lo.includes("follow-up")||lo.includes("next step")||lo.includes("to do")) followups.push(l.trim()); else if (lo.includes("outcome")||lo.includes("result")||lo.includes("confirmed")||lo.includes("completed")||lo.includes("agreed")) outcomes.push(l.trim()); else actions.push(l.trim()); });
-    const parts = [`DATE: ${fmt}`, `CLIENT: ${client.name}`, `SERVICE TYPE: Support Coordination`, "", "CONTACT/ACTION:", ...(actions.length ? actions.map(a=>`  - ${a}`) : [`  - ${raw.trim()}`]), "", "OUTCOME:", ...(outcomes.length ? outcomes.map(o=>`  - ${o}`) : ["  - [To be recorded]"]), "", "FOLLOW-UP:", ...(followups.length ? followups.map(f=>`  - ${f}`) : ["  - Nil"])];
+    const actions = [], followups = [];
+    lines.forEach(l => {
+      const lo = l.toLowerCase();
+      if (lo.includes("follow up")||lo.includes("follow-up")||lo.includes("next step")||lo.includes("to do")) followups.push(l.trim());
+      else actions.push(l.trim());
+    });
+    const est = lines.length <= 3 ? 15 : lines.length <= 6 ? 30 : 45;
+    const parts = [
+      `DATE: ${fmt}`,
+      `CLIENT: ${client.name}`,
+      `SERVICE TYPE: Support Coordination`,
+      "",
+      "ACTION COMPLETED:",
+      ...(actions.length ? actions.map(a=>`- ${a}`) : [`- ${raw.trim()}`]),
+      "",
+      "FOLLOW UP:",
+      ...(followups.length ? followups.map(f=>`- ${f}`) : ["- Nil"]),
+      "",
+      "TIME ESTIMATION:",
+      `- Approximately ${est} minutes (estimated based on activity described)`
+    ];
     if (diffText) parts.push("", diffText);
-    parts.push("", `TIME: ${lines.length <= 3 ? 15 : lines.length <= 6 ? 30 : 45} minutes`, `PREPARED BY: Nico — Disability Support Link`);
+    parts.push("", `PREPARED BY: Nico — Disability Support Link`);
     return parts.join("\n");
   };
 
@@ -512,7 +597,7 @@ function NotesPanel({ client, onUpdate, scratchNotes, setScratchNotes, daySnap, 
     const diffCtx = diffText ? `\n\nTASK EVOLUTION TODAY:\n${diffText}` : "";
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", { method:"POST", headers:{"Content-Type":"application/json","x-api-key":import.meta.env.VITE_ANTHROPIC_KEY||"","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1500,messages:[{role:"user",content:`You are an NDIS Support Coordinator case note formatter. Format these raw notes into a professional NDIS case note.\n\nDATE: ${new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"})}\nCLIENT: ${client.name}\nSERVICE TYPE: Support Coordination\nCLIENT CONTEXT: ${client.note || "N/A"}\n\nUse sections: CONTACT/ACTION, OUTCOME, FOLLOW-UP, TASK PROGRESS (if task evolution data provided), TIME.\nKeep professional, concise, NDIS audit-ready. Integrate the task evolution data naturally.\n\nRaw notes:\n${scratch.trim()}${diffCtx}\n\nReturn ONLY the formatted note.`}]})});
+        body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1500,messages:[{role:"user",content:`You are an NDIS Support Coordinator case note formatter. Format these raw notes into a professional NDIS case note.\n\nDATE: ${new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"2-digit",year:"numeric"})}\nCLIENT: ${client.name}\nSERVICE TYPE: Support Coordination\nCLIENT CONTEXT: ${client.note || "N/A"}\n\nUse EXACTLY these section headings and bullet structure:\n\nACTION COMPLETED:\n- bullet points describing what has been done today.\n\nFOLLOW UP:\n- bullet points listing clear follow up actions / next steps.\n\nTIME ESTIMATION:\n- a single bullet like \"- Approximately 30 minutes\" based on your best estimate of time spent from the notes.\n\nIf task evolution data is provided, weave it naturally into ACTION COMPLETED and FOLLOW UP.\nKeep the tone professional, concise, and NDIS audit-ready.\n\nRaw notes:\n${scratch.trim()}${diffCtx}\n\nReturn ONLY the formatted note using these sections.`}]})});
       if (!res.ok) throw new Error("API error");
       const data = await res.json(); formatted = data.content?.map(i=>i.text||"").join("\n") || localFormat(scratch.trim());
     } catch { formatted = localFormat(scratch.trim()); }
@@ -594,6 +679,87 @@ function WeeklyPanel({ clients }) {
       <div style={{ flex:1, overflowY:"auto", padding:32 }}>
         <div style={{ fontSize:14, color:"#6b7189", marginBottom:16 }}>{sub==="summary"?"All clients, all tasks — grouped by status.":"Auto-generated case notes for clients with activity."}</div>
         <pre style={{ fontSize:15, lineHeight:1.65, whiteSpace:"pre-wrap", padding:28, borderRadius:16, background:"#161822", border:"1px solid #1e2030", color:"#9ca3b8", fontFamily:"inherit", margin:0 }}>{sub==="summary"?sTxt:nTxt}</pre>
+      </div>
+    </div>
+  );
+}
+
+// ═══ TODAY / MY DAY ═══
+function TodayPanel({ clients, onJumpClient }) {
+  const [band, setBand] = useState("orange"); // orange = urgent, blue = normal, green = non‑urgent
+
+  const items = clients.flatMap(c =>
+    c.tasks
+      .filter(t => t.status !== "Done")
+      .map(t => ({ client: c, task: t }))
+  );
+
+  const withBand = items.map(x => {
+    const p = x.task.priority;
+    const cat = p === "urgent" ? "orange" : p === "normal" ? "blue" : "green";
+    return { ...x, band: cat };
+  }).filter(x => x.band === band);
+
+  const colorForBand = (b) =>
+    b === "orange" ? "#fb923c" : b === "blue" ? "#60a5fa" : "#22c55e";
+
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 32px", borderBottom:"1px solid #1e2030", flexWrap:"wrap", gap:10 }}>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          <button onClick={()=>setBand("orange")} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:999, border:"none", background:band==="orange"?"rgba(251,146,60,0.16)":"transparent", color:band==="orange"?"#fb923c":"#6b7189" }}>● Urgent</button>
+          <button onClick={()=>setBand("blue")} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:999, border:"none", background:band==="blue"?"rgba(96,165,250,0.18)":"transparent", color:band==="blue"?"#60a5fa":"#6b7189" }}>● Normal</button>
+          <button onClick={()=>setBand("green")} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:999, border:"none", background:band==="green"?"rgba(34,197,94,0.18)":"transparent", color:band==="green"?"#22c55e":"#6b7189" }}>● Non‑urgent</button>
+        </div>
+        <span style={{ fontSize:13, color:"#4a4f65" }}>
+          {withBand.length} tasks · click a row to jump to client board
+        </span>
+      </div>
+      <div style={{ flex:1, overflowY:"auto", padding:"8px 32px 24px" }}>
+        {withBand.length === 0 && (
+          <div style={{ padding:"40px 0", textAlign:"center", color:"#4a4f65", fontSize:15 }}>
+            No tasks in this band right now.
+          </div>
+        )}
+        {withBand.map(({ client, task }, idx) => (
+          <div
+            key={task.id ?? `${client.name}-${idx}`}
+            onClick={() => onJumpClient(client.name)}
+            style={{
+              padding:"12px 14px",
+              borderRadius:12,
+              marginBottom:8,
+              cursor:"pointer",
+              background:"#161822",
+              border:"1px solid #1e2030",
+              display:"flex",
+              alignItems:"flex-start",
+              gap:10,
+            }}
+          >
+            <div style={{ width:8, height:32, borderRadius:999, background:colorForBand(band), marginTop:2 }}/>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", gap:8 }}>
+                <span style={{ fontSize:14, fontWeight:600, color:"#e8eaf0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {task.text}
+                </span>
+                <span style={{ fontSize:12, color:"#6b7189", flexShrink:0 }}>
+                  {client.name}
+                </span>
+              </div>
+              <div style={{ marginTop:6, display:"flex", gap:8, flexWrap:"wrap" }}>
+                <span style={{ fontSize:11, padding:"3px 8px", borderRadius:999, background:"rgba(31,41,55,0.9)", color:"#9ca3b8", textTransform:"uppercase", letterSpacing:"0.05em" }}>
+                  {task.status}
+                </span>
+                {task.tag && (
+                  <span style={{ fontSize:11, padding:"3px 8px", borderRadius:999, background:"rgba(55,65,81,0.8)", color:"#9ca3b8" }}>
+                    {task.tag}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
