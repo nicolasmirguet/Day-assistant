@@ -17,6 +17,24 @@ function fbCopy(text) { const ta = document.createElement("textarea"); ta.value 
 
 // ═══ DATA ═══
 let uid = 1;
+
+// ═══ NORDIC WELLNESS MINIMAL THEME ═══
+const PAL = {
+  bgBase: "#101113",
+  bgSurface: "#1A1C1E",
+  bgCard: "#242628",
+  bgRaised: "#2E3032",
+  textHigh: "#EDEDED",
+  textMed: "rgba(237,237,237,0.7)",
+  textLow: "rgba(237,237,237,0.4)",
+  textDisabled: "rgba(237,237,237,0.25)",
+  teal: "#4CC2C4",
+  tealHover: "#5DD3D5",
+  tealPressed: "#3BA8AA",
+  softTeal: "#80CBC4",
+  border: "rgba(255,255,255,0.06)",
+  borderStrong: "rgba(255,255,255,0.12)",
+};
 const tk = (text, pri, tag, subs = []) => ({ id: uid++, text, priority: pri, tag, status: "Pending", outcome: "", subtasks: subs.map(t => ({ id: uid++, text: t, done: false })) });
 
 const DEFAULT_CLIENTS = [
@@ -138,13 +156,11 @@ const COLS = [
   { id: "Done", label: "Done", c: "#34d399" },
 ];
 const STATUSES = ["Pending","In Progress","Done","No Answer","Follow-Up Required"];
-// Priority colours using Apple OLED Health palette:
-// urgent = Move ring red, normal = system blue, non‑urgent = system green
 const PRI = {
-  urgent: "#FA114F",   // Move ring red
-  normal: "#0A84FF",   // System blue
-  high:   "#30D158",   // System green
-  medium: "#30D158",   // System green
+  urgent: "#F87171",
+  normal: "#60A5FA",
+  high:   "#4ADE80",
+  medium: "#4ADE80",
 };
 const TAG_C = {
   "Overdue":["rgba(248,113,113,0.1)","#fb7185"], "Budget Alert":["rgba(248,113,113,0.08)","#f87171"],
@@ -304,24 +320,24 @@ export default function App() {
   const resetData = () => { if (window.confirm("Reset all data to defaults?")) { setClients(DEFAULT_CLIENTS); setSel(DEFAULT_CLIENTS[0].name); showToast("Data reset"); } };
 
   return (
-    <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:"#000000", fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif", color:"#FFFFFF" }}>
+    <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:PAL.bgBase, fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif", color:PAL.textMed }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         *{margin:0;padding:0;box-sizing:border-box} ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a2d3e;border-radius:10px}
         button{font-family:inherit;cursor:pointer} select,input,textarea{font-family:inherit} @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
-      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:99, padding:"14px 24px", borderRadius:12, fontSize:15, fontWeight:600, background:"#1C1C1E", color:"#30D158", border:"1px solid #30D158", boxShadow:"0 10px 30px rgba(0,0,0,0.8)" }}>{toast}</div>}
+      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:99, padding:"14px 24px", borderRadius:12, fontSize:15, fontWeight:600, background:PAL.bgRaised, color:PAL.teal, border:`1px solid ${PAL.borderStrong}`, boxShadow:"0 10px 30px rgba(0,0,0,0.8)" }}>{toast}</div>}
 
       {/* SIDEBAR */}
-      <div style={{ display:"flex", flexDirection:"column", width:collapsed?80:340, background:"#1C1C1E", borderRight:"1px solid #2C2C2E", flexShrink:0, transition:"width 0.25s ease" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:14, padding:"20px", borderBottom:"1px solid #2C2C2E" }}>
-          {!collapsed && <><div style={{ width:44, height:44, borderRadius:12, background:"#2C2C2E", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, color:"#0A84FF", border:"1px solid #3A3A3C" }}>◈</div>
+      <div style={{ display:"flex", flexDirection:"column", width:collapsed?80:340, background:PAL.bgSurface, borderRight:`1px solid ${PAL.border}`, flexShrink:0, transition:"width 0.25s ease" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:14, padding:"20px", borderBottom:`1px solid ${PAL.border}` }}>
+          {!collapsed && <><div style={{ width:44, height:44, borderRadius:12, background:PAL.bgCard, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, color:PAL.teal, border:`1px solid ${PAL.border}` }}>◈</div>
             <div style={{ flex:1 }}>
               <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
-                <div style={{ fontSize:20, fontWeight:800, letterSpacing:"-0.02em" }}>DSL Tracker</div>
-                <span style={{ fontSize:12, fontWeight:600, color:"#6b7280" }}>v0.3</span>
+                <div style={{ fontSize:20, fontWeight:800, letterSpacing:"-0.02em", color:PAL.textHigh }}>DSL Tracker</div>
+                <span style={{ fontSize:12, fontWeight:600, color:PAL.textLow }}>v0.3</span>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}><span style={{ fontSize:14, color:"#6b7189" }}>Support Coordination</span>
-                <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:99, background:"rgba(48,209,88,0.16)", color:"#30D158" }}><span style={{ width:7, height:7, borderRadius:4, background:"#30D158", display:"inline-block" }}/>Saved</span></div></div></>}
-          <button onClick={() => setCollapsed(!collapsed)} style={{ background:"none", border:"none", color:"#8E8E93", padding:8, fontSize:18 }}>{collapsed?"▸":"◂"}</button>
+                <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:99, background:"rgba(76,194,196,0.12)", color:PAL.teal }}><span style={{ width:7, height:7, borderRadius:4, background:PAL.teal, display:"inline-block" }}/>Saved</span></div></div></>}
+          <button onClick={() => setCollapsed(!collapsed)} style={{ background:"none", border:"none", color:PAL.textLow, padding:8, fontSize:18 }}>{collapsed?"▸":"◂"}</button>
         </div>
 
         {!collapsed && <>
@@ -340,14 +356,30 @@ export default function App() {
             )}
           </div>
 
-          <div style={{ padding:"12px 20px", borderBottom:"1px solid #2C2C2E", display:"flex", gap:10, flexWrap:"wrap" }}>
-            <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(48,209,88,0.18)", color:"#30D158" }}>✓ {doneN}/{all.length}</span>
-            {urgN>0 && <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(250,17,79,0.20)", color:"#FA114F" }}>⚠ {urgN}</span>}
+          <div style={{ padding:"12px 20px", borderBottom:`1px solid ${PAL.border}`, display:"flex", gap:10, flexWrap:"wrap" }}>
+            <span style={{ fontSize:13, fontWeight:600, padding:"4px 10px", borderRadius:8, background:"rgba(34,197,94,0.14)", color:"#4ADE80", border:"1px solid rgba(34,197,94,0.22)" }}>✓ {doneN}/{all.length}</span>
+            {urgN>0 && <span style={{ fontSize:13, fontWeight:600, padding:"4px 10px", borderRadius:8, background:"rgba(239,68,68,0.14)", color:"#F87171", border:"1px solid rgba(239,68,68,0.22)" }}>⚠ {urgN}</span>}
           </div>
-          <div style={{ padding:"16px 20px", borderBottom:"1px solid #2C2C2E" }}>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients..." style={{ width:"100%", fontSize:16, padding:"14px 18px", borderRadius:12, background:"#000000", border:"1px solid #3A3A3C", color:"#FFFFFF", outline:"none" }}/>
+          <div style={{ padding:"16px 20px", borderBottom:`1px solid ${PAL.border}` }}>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients..." style={{ width:"100%", fontSize:14, padding:"10px 14px", borderRadius:8, background:PAL.bgCard, border:`1px solid ${PAL.border}`, color:PAL.textMed, outline:"none" }}/>
             <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
-              {["All","Urgent","Overdue","Active"].map(f => (<button key={f} onClick={() => setFilter(f)} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:10, background:filter===f?"rgba(91,141,239,0.15)":"transparent", color:filter===f?"#5b8def":"#6b7189", border:filter===f?"1px solid rgba(91,141,239,0.3)":"1px solid transparent" }}>{f}</button>))}
+              {["All","Urgent","Overdue","Active"].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  style={{
+                    fontSize:12,
+                    fontWeight:500,
+                    padding:"4px 10px",
+                    borderRadius:6,
+                    background:filter===f ? "rgba(76,194,196,0.15)" : "rgba(237,237,237,0.06)",
+                    color:filter===f ? PAL.teal : PAL.textLow,
+                    border:"none",
+                  }}
+                >
+                  {f}
+                </button>
+              ))}
             </div>
             {recentClients.length > 0 && (
               <div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:6 }}>
@@ -355,7 +387,7 @@ export default function App() {
                   <button
                     key={name}
                     onClick={() => { setSel(name); setTab("kanban"); }}
-                    style={{ fontSize:12, padding:"4px 10px", borderRadius:999, border:"none", background:"rgba(10,132,255,0.30)", color:"#E5F2FF", fontWeight:500 }}
+                    style={{ fontSize:12, padding:"4px 10px", borderRadius:999, border:"none", background:"rgba(76,194,196,0.15)", color:PAL.teal, fontWeight:500 }}
                   >
                     {name.split(" ").slice(0,2).join(" ")}
                   </button>
@@ -370,24 +402,24 @@ export default function App() {
               const overdueN = c.tasks.filter(t=>t.tag==="Overdue" && t.status!=="Done").length;
               const followN = c.tasks.filter(t=>t.status==="Follow-Up Required").length;
               return (
-                <div key={c.name} onClick={() => setSel(c.name)} style={{ padding:"14px 16px", borderRadius:14, marginBottom:4, cursor:"pointer", background:isSel?"#2C2C2E":"transparent", borderLeft:isSel?"3px solid #0A84FF":"3px solid transparent", transition:"all 0.15s" }}>
+                <div key={c.name} onClick={() => setSel(c.name)} style={{ padding:"14px 16px", borderRadius:10, marginBottom:4, cursor:"pointer", background:isSel?"rgba(76,194,196,0.12)":"transparent", borderLeft:isSel?`3px solid ${PAL.teal}`:"3px solid transparent", transition:"all 0.15s" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-                    <div style={{ width:44, height:44, borderRadius:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, flexShrink:0, background:hasUrg?"rgba(250,17,79,0.25)":"rgba(10,132,255,0.25)", color:hasUrg?"#FA114F":"#0A84FF" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
+                    <div style={{ width:40, height:40, borderRadius:20, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:600, flexShrink:0, background:PAL.bgCard, color:PAL.textHigh, border:`1px solid ${PAL.border}` }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <span style={{ fontSize:16, fontWeight:600, color:isSel?"#FFFFFF":"#E5E5EA", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.name}</span>
-                        {hasUrg && <span style={{ fontSize:14, color:"#FA114F" }}>⚠</span>}
+                        <span style={{ fontSize:14, fontWeight:600, color:isSel?PAL.textHigh:PAL.textMed, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.name}</span>
+                        {hasUrg && <span style={{ fontSize:12, color:"#FB923C" }}>▲</span>}
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:8 }}>
-                        <div style={{ flex:1, height:6, borderRadius:3, background:"#000000", overflow:"hidden" }}>
-                          <div style={{ height:"100%", borderRadius:3, width:`${pct}%`, background:pct===100?"#30D158":"#0A84FF", transition:"width 0.3s" }}/>
+                        <div style={{ flex:1, height:4, borderRadius:999, background:"rgba(237,237,237,0.08)", overflow:"hidden" }}>
+                          <div style={{ height:"100%", borderRadius:999, width:`${pct}%`, background:PAL.softTeal, transition:"width 0.3s" }}/>
                         </div>
-                        <span style={{ fontSize:14, color:"#8E8E93" }}>{dn}/{tot}</span>
+                        <span style={{ fontSize:12, color:PAL.textLow }}>{dn}/{tot}</span>
                       </div>
                       <div style={{ display:"flex", gap:10, marginTop:6, fontSize:12 }}>
-                        {overdueN>0 && <span style={{ color:"#FA114F" }}>⚠ {overdueN} overdue</span>}
-                        {dn>0 && <span style={{ color:"#30D158" }}>✓ {dn} done</span>}
-                        {followN>0 && <span style={{ color:"#0A84FF" }}>⏱ {followN} follow‑up</span>}
+                        {overdueN>0 && <span style={{ color:"#FB923C", fontSize:11 }}>⚠ {overdueN} overdue</span>}
+                        {dn>0 && <span style={{ color:"#4ADE80", fontSize:11 }}>✓ {dn} done</span>}
+                        {followN>0 && <span style={{ color:"#93C5FD", fontSize:11 }}>⏱ {followN} follow‑up</span>}
                       </div>
                     </div>
                   </div>
@@ -395,12 +427,12 @@ export default function App() {
               );
             })}
           </div>
-          <div style={{ padding:"12px 20px", borderTop:"1px solid #2C2C2E", display:"flex", flexDirection:"column", gap:8 }}>
-            <button onClick={() => setShowAdd(true)} style={{ width:"100%", padding:"14px 0", borderRadius:12, fontSize:16, fontWeight:600, background:"#0A84FF", color:"#FFFFFF", border:"none", boxShadow:"0 8px 24px rgba(10,132,255,0.55)" }}>+ Add Client</button>
+          <div style={{ padding:"12px 20px", borderTop:`1px solid ${PAL.border}`, display:"flex", flexDirection:"column", gap:8 }}>
+            <button onClick={() => setShowAdd(true)} style={{ width:"100%", padding:"10px 0", borderRadius:8, fontSize:13, fontWeight:600, background:PAL.teal, color:"#101113", border:"none" }}>+ Add Client</button>
             <div style={{ display:"flex", gap:8 }}>
-              <button onClick={() => { exportJSON(clients); showToast("Exported"); }} style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(48,209,88,0.18)", color:"#30D158", border:"none" }}>↓ Export</button>
-              <label style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(10,132,255,0.20)", color:"#0A84FF", textAlign:"center", cursor:"pointer" }}>↑ Import<input type="file" accept=".json" onChange={handleImport} style={{ display:"none" }}/></label>
-              <button onClick={resetData} style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(250,17,79,0.20)", color:"#FA114F", border:"none" }}>↺ Reset</button>
+              <button onClick={() => { exportJSON(clients); showToast("Exported"); }} style={{ flex:1, padding:"8px 0", borderRadius:8, fontSize:12, fontWeight:500, background:"rgba(237,237,237,0.06)", color:PAL.textLow, border:`1px solid ${PAL.border}` }}>↓ Export</button>
+              <label style={{ flex:1, padding:"8px 0", borderRadius:8, fontSize:12, fontWeight:500, background:"rgba(237,237,237,0.06)", color:PAL.textLow, textAlign:"center", cursor:"pointer", border:`1px solid ${PAL.border}` }}>↑ Import<input type="file" accept=".json" onChange={handleImport} style={{ display:"none" }}/></label>
+              <button onClick={resetData} style={{ flex:1, padding:"8px 0", borderRadius:8, fontSize:12, fontWeight:500, background:"rgba(239,68,68,0.14)", color:"#F87171", border:"1px solid rgba(239,68,68,0.22)" }}>↺ Reset</button>
             </div>
           </div>
         </>}
@@ -410,31 +442,38 @@ export default function App() {
       {/* MAIN */}
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
         {client ? <>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 32px", background:"#1C1C1E", borderBottom:"1px solid #2C2C2E", flexWrap:"wrap", gap:12 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 32px", background:PAL.bgSurface, borderBottom:`1px solid ${PAL.border}`, flexWrap:"wrap", gap:12 }}>
             <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-              <div style={{ width:52, height:52, borderRadius:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, background:client.priority==="urgent"?"rgba(250,17,79,0.25)":"rgba(10,132,255,0.25)", color:client.priority==="urgent"?"#FA114F":"#0A84FF" }}>{client.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
-              <div><div style={{ fontSize:22, fontWeight:700 }}>{client.name}</div><div style={{ fontSize:15, color:"#8E8E93", marginTop:4, maxWidth:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{client.note}</div></div>
+              <div style={{ width:52, height:52, borderRadius:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, background:PAL.bgCard, color:PAL.textHigh, border:`1px solid ${PAL.border}` }}>{client.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
+              <div><div style={{ fontSize:22, fontWeight:700, color:PAL.textHigh }}>{client.name}</div><div style={{ fontSize:13, color:PAL.textLow, marginTop:4, maxWidth:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{client.note}</div></div>
             </div>
-            <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
-              {client.tags.map(t => { const [bg,clr]=TAG_C[t]||["#2C2C2E","#E5E5EA"]; return <span key={t} style={{ fontSize:13, fontWeight:600, padding:"5px 14px", borderRadius:999, background:bg, color:clr }}>{t}</span>; })}
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+              {client.tags.map(t => {
+                let bg = "rgba(96,165,250,0.14)", clr = "#93C5FD", br = "1px solid rgba(96,165,250,0.22)";
+                if (t==="Overdue") { bg="rgba(251,146,60,0.14)"; clr="#FB923C"; br="1px solid rgba(251,146,60,0.22)"; }
+                else if (t==="Action Item") { bg="rgba(76,194,196,0.14)"; clr="#4CC2C4"; br="1px solid rgba(76,194,196,0.22)"; }
+                else if (t==="Budget Alert") { bg="rgba(245,158,11,0.14)"; clr="#FBBF24"; br="1px solid rgba(245,158,11,0.22)"; }
+                else if (t==="New Client" || t==="Check-in Due") { bg="rgba(34,197,94,0.14)"; clr="#4ADE80"; br="1px solid rgba(34,197,94,0.22)"; }
+                return <span key={t} style={{ fontSize:12, fontWeight:500, padding:"4px 10px", borderRadius:6, background:bg, color:clr, border:br }}>{t}</span>;
+              })}
             </div>
           </div>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, padding:"14px 32px", borderBottom:"1px solid #2C2C2E", background:"#000000", flexWrap:"wrap" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, padding:"14px 32px", borderBottom:`1px solid ${PAL.border}`, background:PAL.bgBase, flexWrap:"wrap" }}>
             <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
               {[{id:"today",l:"☀ My Day"},{id:"kanban",l:"◫ Board"},{id:"weekly",l:"📋 Weekly Summary"},{id:"summary",l:"⊞ Client Summary"}].map(t => (
-                <button key={t.id} onClick={() => setTab(t.id)} style={{ fontSize:15, fontWeight:600, padding:"9px 18px", borderRadius:999, background:tab===t.id?"rgba(10,132,255,0.30)":"transparent", color:tab===t.id?"#FFFFFF":"#8E8E93", border:"none", transition:"all 0.15s" }}>{t.l}</button>
+                <button key={t.id} onClick={() => setTab(t.id)} style={{ fontSize:13, fontWeight:500, padding:"6px 12px", borderRadius:6, background:tab===t.id?"rgba(76,194,196,0.12)":"transparent", color:tab===t.id?PAL.textHigh:PAL.textLow, border:"none", transition:"all 0.15s" }}>{t.l}</button>
               ))}
             </div>
             {tab==="kanban" && (
               <button
                 onClick={() => setAddingTask(true)}
-                style={{ fontSize:14, fontWeight:600, padding:"9px 18px", borderRadius:999, background:"#0A84FF", color:"#FFFFFF", border:"none", boxShadow:"0 4px 16px rgba(0,0,0,0.8)" }}
+                style={{ fontSize:13, fontWeight:600, padding:"8px 16px", borderRadius:8, background:PAL.teal, color:"#101113", border:"none" }}
               >
                 + New Task
               </button>
             )}
           </div>
-          <div style={{ flex:1, overflow:"hidden", background:"#000000" }}>
+          <div style={{ flex:1, overflow:"hidden", background:PAL.bgBase }}>
             {tab==="today" && <TodayPanel clients={clients} onJumpClient={name => { setSel(name); setTab("kanban"); }}/>}
             {tab==="kanban" && (
               <div style={{ display:"flex", height:"100%" }}>
@@ -474,11 +513,11 @@ function Kanban({ client, onUpdate, adding, setAdding }) {
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 20px" }}>
         <button
           onClick={() => setAdding(true)}
-          style={{ fontSize:14, fontWeight:600, padding:"8px 18px", borderRadius:999, background:"#2563eb", color:"#e5edff", border:"none", boxShadow:"0 3px 12px rgba(37,99,235,0.5)" }}
+          style={{ fontSize:13, fontWeight:600, padding:"8px 16px", borderRadius:8, background:PAL.teal, color:"#101113", border:"none" }}
         >
           + New Task
         </button>
-        <span style={{ fontSize:14, color:"#4b5563" }}>Drag tasks between columns</span>
+        <span style={{ fontSize:12, color:PAL.textLow }}>Drag tasks between columns</span>
       </div>
       {adding && <div style={{ padding:"0 32px 14px", display:"flex", gap:12 }}>
         <input autoFocus value={newTxt} onChange={e=>setNewTxt(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addT();if(e.key==="Escape")setAdding(false)}} placeholder="Describe the task..." style={{ flex:1, fontSize:16, padding:"12px 18px", borderRadius:12, background:"#1a1d2e", border:"1px solid #252839", color:"#e8eaf0", outline:"none" }}/>
@@ -490,11 +529,12 @@ function Kanban({ client, onUpdate, adding, setAdding }) {
           {COLS.map(col => {
             const tasks = client.tasks.filter(t=>t.status===col.id), isOver = overCol===col.id;
             return (
-              <div key={col.id} style={{ flex:"1 1 0", minWidth:260, maxWidth:420, display:"flex", flexDirection:"column", borderRadius:16, background:isOver?"rgba(37,99,235,0.16)":"#020617", border:`1px solid ${isOver?"rgba(37,99,235,0.6)":"#111827"}`, transition:"all 0.2s" }}
+              <div key={col.id} style={{ flex:"1 1 0", minWidth:260, maxWidth:420, display:"flex", flexDirection:"column", borderRadius:12, background:isOver?PAL.bgRaised:PAL.bgCard, border:`1px solid ${PAL.border}`, transition:"all 0.2s" }}
                 onDragOver={e=>{e.preventDefault();setOverCol(col.id)}} onDragLeave={()=>setOverCol(null)} onDrop={()=>drop(col.id)}>
-                <div style={{ display:"flex", alignItems:"center", gap:12, padding:"16px 20px", borderBottom:"1px solid #1e2030" }}>
-                  <div style={{ width:12, height:12, borderRadius:6, background:col.c }}/><span style={{ fontSize:17, fontWeight:700 }}>{col.label}</span>
-                  <span style={{ fontSize:14, fontWeight:600, padding:"4px 12px", borderRadius:99, background:"rgba(107,113,137,0.15)", color:"#6b7189", marginLeft:"auto" }}>{tasks.length}</span>
+                <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 16px", borderBottom:`1px solid ${PAL.border}` }}>
+                  <div style={{ width:8, height:8, borderRadius:4, background:col.c, opacity:0.5 }}/>
+                  <span style={{ fontSize:13, fontWeight:600, color:PAL.textHigh }}>{col.label}</span>
+                  <span style={{ fontSize:11, fontWeight:500, padding:"2px 8px", borderRadius:999, background:"rgba(237,237,237,0.06)", color:PAL.textLow, marginLeft:"auto" }}>{tasks.length}</span>
                 </div>
                 <div style={{ flex:1, overflowY:"auto", padding:12 }}>
                   {tasks.map(task => <Card key={task.id} task={task} onDrag={()=>setDragged(task)} onUpd={updT} onDel={delT} isExp={expanded===task.id} onTog={()=>setExpanded(expanded===task.id?null:task.id)}/>)}
@@ -516,14 +556,14 @@ function Card({ task, onDrag, onUpd, onDel, isExp, onTog }) {
   const addSubtask = () => { if (!newSub.trim()) return; onUpd({ ...task, subtasks: [...task.subtasks, { id: uid++, text: newSub.trim(), done: false }] }); setNewSub(""); setAddingSub(false); };
   const delSub = (sid) => onUpd({ ...task, subtasks: task.subtasks.filter(s => s.id !== sid) });
   return (
-    <div draggable onDragStart={onDrag} style={{ borderRadius:14, padding:18, marginBottom:12, cursor:"grab", background:"#1c1f2e", border:`1px solid ${isExp?"rgba(91,141,239,0.3)":"#252839"}` }}>
+    <div draggable onDragStart={onDrag} style={{ borderRadius:10, padding:14, marginBottom:10, cursor:"grab", background:PAL.bgCard, border:`1px solid ${isExp?PAL.borderStrong:PAL.border}` }}>
       <div onClick={onTog} style={{ display:"flex", gap:12, cursor:"pointer" }}>
         <div style={{ width:10, height:10, borderRadius:5, marginTop:8, flexShrink:0, background:pc }}/>
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:16, lineHeight:1.5, fontWeight:500, color:task.status==="Done"?"#4a4f65":"#e8eaf0", textDecoration:task.status==="Done"?"line-through":"none" }}>{task.text}</div>
+          <div style={{ fontSize:13, lineHeight:1.5, fontWeight:500, color:task.status==="Done"?PAL.textLow:PAL.textMed, textDecoration:task.status==="Done"?"line-through":"none" }}>{task.text}</div>
           <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginTop:10 }}>
-            <span style={{ fontSize:13, fontWeight:600, padding:"4px 12px", borderRadius:99, background:tBg, color:tClr }}>{task.tag}</span>
-            {task.priority!=="normal" && <span style={{ fontSize:13, fontWeight:600, padding:"4px 12px", borderRadius:99, background:`${pc}20`, color:pc, textTransform:"capitalize" }}>{task.priority}</span>}
+            <span style={{ fontSize:11, fontWeight:500, padding:"2px 8px", borderRadius:6, background:tBg, color:tClr, border:"1px solid rgba(255,255,255,0.06)" }}>{task.tag}</span>
+            {task.priority!=="normal" && <span style={{ fontSize:11, fontWeight:500, padding:"2px 8px", borderRadius:6, background:"rgba(96,165,250,0.14)", color:pc, border:"1px solid rgba(96,165,250,0.22)", textTransform:"capitalize" }}>{task.priority}</span>}
             {pS>0 && <span style={{ fontSize:13, color:"#fb923c", marginLeft:"auto" }}>{pS} pending</span>}
             {task.subtasks.length>0 && pS===0 && <span style={{ fontSize:13, color:"#34d399", marginLeft:"auto" }}>✓ all done</span>}
           </div>
