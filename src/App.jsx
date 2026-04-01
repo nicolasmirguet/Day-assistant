@@ -138,9 +138,9 @@ const COLS = [
   { id: "Done", label: "Done", c: "#34d399" },
 ];
 const STATUSES = ["Pending","In Progress","Done","No Answer","Follow-Up Required"];
-// Priority colours: orange = urgent, blue = normal, green = non‑urgent (high/medium)
+// Priority colours: red = urgent, blue = normal, green = non‑urgent (high/medium)
 const PRI = {
-  urgent: "#fb923c",   // orange
+  urgent: "#ef4444",   // red
   normal: "#60a5fa",   // blue
   high:   "#22c55e",   // green
   medium: "#22c55e",   // green
@@ -337,7 +337,7 @@ export default function App() {
 
           <div style={{ padding:"12px 20px", borderBottom:"1px solid #111827", display:"flex", gap:10, flexWrap:"wrap" }}>
             <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(34,197,94,0.18)", color:"#22c55e" }}>✓ {doneN}/{all.length}</span>
-            {urgN>0 && <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(251,146,60,0.18)", color:"#fb923c" }}>⚠ {urgN}</span>}
+            {urgN>0 && <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(248,113,113,0.20)", color:"#ef4444" }}>⚠ {urgN}</span>}
           </div>
           <div style={{ padding:"16px 20px", borderBottom:"1px solid #111827" }}>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients..." style={{ width:"100%", fontSize:16, padding:"14px 18px", borderRadius:12, background:"#020617", border:"1px solid #1e293b", color:"#f9fafb", outline:"none" }}/>
@@ -367,11 +367,11 @@ export default function App() {
               return (
                 <div key={c.name} onClick={() => setSel(c.name)} style={{ padding:"14px 16px", borderRadius:14, marginBottom:4, cursor:"pointer", background:isSel?"rgba(15,23,42,0.95)":"transparent", borderLeft:isSel?"3px solid #3b82f6":"3px solid transparent", transition:"all 0.15s" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-                    <div style={{ width:44, height:44, borderRadius:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, flexShrink:0, background:hasUrg?"rgba(251,146,60,0.18)":"rgba(37,99,235,0.18)", color:hasUrg?"#fb923c":"#60a5fa" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
+                    <div style={{ width:44, height:44, borderRadius:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, flexShrink:0, background:hasUrg?"rgba(248,113,113,0.22)":"rgba(37,99,235,0.18)", color:hasUrg?"#ef4444":"#60a5fa" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                         <span style={{ fontSize:16, fontWeight:600, color:isSel?"#f9fafb":"#e5e7eb", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.name}</span>
-                        {hasUrg && <span style={{ fontSize:14, color:"#fb923c" }}>⚠</span>}
+                        {hasUrg && <span style={{ fontSize:14, color:"#ef4444" }}>⚠</span>}
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:8 }}>
                         <div style={{ flex:1, height:6, borderRadius:3, background:"#020617", overflow:"hidden" }}>
@@ -380,7 +380,7 @@ export default function App() {
                         <span style={{ fontSize:14, color:"#6b7280" }}>{dn}/{tot}</span>
                       </div>
                       <div style={{ display:"flex", gap:10, marginTop:6, fontSize:12 }}>
-                        {overdueN>0 && <span style={{ color:"#fb923c" }}>⚠ {overdueN} overdue</span>}
+                        {overdueN>0 && <span style={{ color:"#ef4444" }}>⚠ {overdueN} overdue</span>}
                         {dn>0 && <span style={{ color:"#22c55e" }}>✓ {dn} done</span>}
                         {followN>0 && <span style={{ color:"#3b82f6" }}>⏱ {followN} follow‑up</span>}
                       </div>
@@ -433,10 +433,10 @@ export default function App() {
             {tab==="today" && <TodayPanel clients={clients} onJumpClient={name => { setSel(name); setTab("kanban"); }}/>}
             {tab==="kanban" && (
               <div style={{ display:"flex", height:"100%" }}>
-                <div style={{ flex:2, minWidth:0 }}>
+                <div style={{ flex:3, minWidth:0 }}>
                   <Kanban client={client} onUpdate={upd} adding={addingTask} setAdding={setAddingTask}/>
                 </div>
-                <div style={{ width:420, borderLeft:"1px solid #1e2030", background:"#101222" }}>
+                <div style={{ width:360, borderLeft:"1px solid #111827", background:"#020617" }}>
                   <NotesPanel client={client} onUpdate={upd} scratchNotes={scratchNotes} setScratchNotes={setScratchNotes} daySnap={daySnap} allClients={clients}/>
                 </div>
               </div>
@@ -466,7 +466,7 @@ function Kanban({ client, onUpdate, adding, setAdding }) {
   const addT = () => { if(!newTxt.trim()) return; onUpdate({...client, tasks:[...client.tasks,{id:uid++,text:newTxt.trim(),priority:"normal",tag:"Action Item",status:"Pending",outcome:"",subtasks:[]}]}); setNewTxt(""); setAdding(false); };
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 32px" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 20px" }}>
         <span style={{ fontSize:16, fontWeight:600, color:"#6b7189" }}>{client.tasks.length} tasks · {client.tasks.filter(t=>t.status==="Done").length} done</span>
         <span style={{ fontSize:14, color:"#4a4f65" }}>Drag tasks between columns</span>
       </div>
@@ -475,12 +475,12 @@ function Kanban({ client, onUpdate, adding, setAdding }) {
         <button onClick={addT} style={{ padding:"12px 24px", borderRadius:12, fontSize:16, fontWeight:600, background:"#5b8def", color:"white", border:"none" }}>Add</button>
         <button onClick={()=>setAdding(false)} style={{ padding:"12px 24px", borderRadius:12, fontSize:16, background:"#1a1d2e", color:"#6b7189", border:"none" }}>Cancel</button>
       </div>}
-      <div style={{ flex:1, overflowX:"auto", overflowY:"hidden", padding:"0 20px 20px" }}>
-        <div style={{ display:"flex", gap:16, height:"100%", minWidth:"max-content" }}>
+      <div style={{ flex:1, overflowX:"auto", overflowY:"hidden", padding:"0 16px 16px" }}>
+        <div style={{ display:"flex", gap:12, height:"100%", minWidth:"max-content" }}>
           {COLS.map(col => {
             const tasks = client.tasks.filter(t=>t.status===col.id), isOver = overCol===col.id;
             return (
-              <div key={col.id} style={{ width:380, display:"flex", flexDirection:"column", borderRadius:16, background:isOver?"rgba(91,141,239,0.04)":"#161822", border:`1px solid ${isOver?"rgba(91,141,239,0.3)":"#1e2030"}`, transition:"all 0.2s" }}
+              <div key={col.id} style={{ width:340, display:"flex", flexDirection:"column", borderRadius:16, background:isOver?"rgba(37,99,235,0.16)":"#020617", border:`1px solid ${isOver?"rgba(37,99,235,0.6)":"#111827"}`, transition:"all 0.2s" }}
                 onDragOver={e=>{e.preventDefault();setOverCol(col.id)}} onDragLeave={()=>setOverCol(null)} onDrop={()=>drop(col.id)}>
                 <div style={{ display:"flex", alignItems:"center", gap:12, padding:"16px 20px", borderBottom:"1px solid #1e2030" }}>
                   <div style={{ width:12, height:12, borderRadius:6, background:col.c }}/><span style={{ fontSize:17, fontWeight:700 }}>{col.label}</span>
@@ -686,7 +686,7 @@ function WeeklyPanel({ clients }) {
 
 // ═══ TODAY / MY DAY ═══
 function TodayPanel({ clients, onJumpClient }) {
-  const [band, setBand] = useState("orange"); // orange = urgent, blue = normal, green = non‑urgent
+  const [band, setBand] = useState("red"); // red = urgent, blue = normal, green = non‑urgent
 
   const items = clients.flatMap(c =>
     c.tasks
@@ -696,18 +696,18 @@ function TodayPanel({ clients, onJumpClient }) {
 
   const withBand = items.map(x => {
     const p = x.task.priority;
-    const cat = p === "urgent" ? "orange" : p === "normal" ? "blue" : "green";
+    const cat = p === "urgent" ? "red" : p === "normal" ? "blue" : "green";
     return { ...x, band: cat };
   }).filter(x => x.band === band);
 
   const colorForBand = (b) =>
-    b === "orange" ? "#fb923c" : b === "blue" ? "#60a5fa" : "#22c55e";
+    b === "red" ? "#ef4444" : b === "blue" ? "#60a5fa" : "#22c55e";
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 32px", borderBottom:"1px solid #1e2030", flexWrap:"wrap", gap:10 }}>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-          <button onClick={()=>setBand("orange")} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:999, border:"none", background:band==="orange"?"rgba(251,146,60,0.16)":"transparent", color:band==="orange"?"#fb923c":"#6b7189" }}>● Urgent</button>
+          <button onClick={()=>setBand("red")} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:999, border:"none", background:band==="red"?"rgba(248,113,113,0.18)":"transparent", color:band==="red"?"#ef4444":"#6b7189" }}>● Urgent</button>
           <button onClick={()=>setBand("blue")} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:999, border:"none", background:band==="blue"?"rgba(96,165,250,0.18)":"transparent", color:band==="blue"?"#60a5fa":"#6b7189" }}>● Normal</button>
           <button onClick={()=>setBand("green")} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:999, border:"none", background:band==="green"?"rgba(34,197,94,0.18)":"transparent", color:band==="green"?"#22c55e":"#6b7189" }}>● Non‑urgent</button>
         </div>
