@@ -313,7 +313,11 @@ export default function App() {
       <div style={{ display:"flex", flexDirection:"column", width:collapsed?80:340, background:"#050816", borderRight:"1px solid #111827", flexShrink:0, transition:"width 0.25s ease" }}>
         <div style={{ display:"flex", alignItems:"center", gap:14, padding:"20px", borderBottom:"1px solid #111827" }}>
           {!collapsed && <><div style={{ width:44, height:44, borderRadius:12, background:"#111827", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, color:"#3b82f6", border:"1px solid #1f2937" }}>◈</div>
-            <div style={{ flex:1 }}><div style={{ fontSize:20, fontWeight:800, letterSpacing:"-0.02em" }}>DSL Tracker</div>
+            <div style={{ flex:1 }}>
+              <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
+                <div style={{ fontSize:20, fontWeight:800, letterSpacing:"-0.02em" }}>DSL Tracker</div>
+                <span style={{ fontSize:12, fontWeight:600, color:"#6b7280" }}>v0.3</span>
+              </div>
               <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}><span style={{ fontSize:14, color:"#6b7189" }}>Support Coordination</span>
                 <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:99, background:"rgba(34,197,94,0.16)", color:"#22c55e" }}><span style={{ width:7, height:7, borderRadius:4, background:"#22c55e", display:"inline-block" }}/>Saved</span></div></div></>}
           <button onClick={() => setCollapsed(!collapsed)} style={{ background:"none", border:"none", color:"#6b7189", padding:8, fontSize:18 }}>{collapsed?"▸":"◂"}</button>
@@ -467,12 +471,12 @@ function Kanban({ client, onUpdate, adding, setAdding }) {
         <button onClick={addT} style={{ padding:"12px 24px", borderRadius:12, fontSize:16, fontWeight:600, background:"#5b8def", color:"white", border:"none" }}>Add</button>
         <button onClick={()=>setAdding(false)} style={{ padding:"12px 24px", borderRadius:12, fontSize:16, background:"#1a1d2e", color:"#6b7189", border:"none" }}>Cancel</button>
       </div>}
-      <div style={{ flex:1, overflowX:"auto", overflowY:"hidden", padding:"0 16px 16px" }}>
-        <div style={{ display:"flex", gap:12, height:"100%", minWidth:"max-content" }}>
+      <div style={{ flex:1, overflowX:"auto", overflowY:"hidden", padding:"0 24px 20px" }}>
+        <div style={{ display:"flex", gap:18, height:"100%", minWidth:"100%" }}>
           {COLS.map(col => {
             const tasks = client.tasks.filter(t=>t.status===col.id), isOver = overCol===col.id;
             return (
-              <div key={col.id} style={{ width:340, display:"flex", flexDirection:"column", borderRadius:16, background:isOver?"rgba(37,99,235,0.16)":"#020617", border:`1px solid ${isOver?"rgba(37,99,235,0.6)":"#111827"}`, transition:"all 0.2s" }}
+              <div key={col.id} style={{ flex:"1 1 0", minWidth:260, maxWidth:420, display:"flex", flexDirection:"column", borderRadius:16, background:isOver?"rgba(37,99,235,0.16)":"#020617", border:`1px solid ${isOver?"rgba(37,99,235,0.6)":"#111827"}`, transition:"all 0.2s" }}
                 onDragOver={e=>{e.preventDefault();setOverCol(col.id)}} onDragLeave={()=>setOverCol(null)} onDrop={()=>drop(col.id)}>
                 <div style={{ display:"flex", alignItems:"center", gap:12, padding:"16px 20px", borderBottom:"1px solid #1e2030" }}>
                   <div style={{ width:12, height:12, borderRadius:6, background:col.c }}/><span style={{ fontSize:17, fontWeight:700 }}>{col.label}</span>
