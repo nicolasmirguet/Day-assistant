@@ -138,12 +138,13 @@ const COLS = [
   { id: "Done", label: "Done", c: "#34d399" },
 ];
 const STATUSES = ["Pending","In Progress","Done","No Answer","Follow-Up Required"];
-// Priority colours: red = urgent, blue = normal, green = non‑urgent (high/medium)
+// Priority colours using Apple OLED Health palette:
+// urgent = Move ring red, normal = system blue, non‑urgent = system green
 const PRI = {
-  urgent: "#ef4444",   // red
-  normal: "#60a5fa",   // blue
-  high:   "#22c55e",   // green
-  medium: "#22c55e",   // green
+  urgent: "#FA114F",   // Move ring red
+  normal: "#0A84FF",   // System blue
+  high:   "#30D158",   // System green
+  medium: "#30D158",   // System green
 };
 const TAG_C = {
   "Overdue":["rgba(248,113,113,0.1)","#fb7185"], "Budget Alert":["rgba(248,113,113,0.08)","#f87171"],
@@ -303,24 +304,24 @@ export default function App() {
   const resetData = () => { if (window.confirm("Reset all data to defaults?")) { setClients(DEFAULT_CLIENTS); setSel(DEFAULT_CLIENTS[0].name); showToast("Data reset"); } };
 
   return (
-    <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:"#0b0f19", fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif", color:"#f9fafb" }}>
+    <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:"#000000", fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif", color:"#FFFFFF" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         *{margin:0;padding:0;box-sizing:border-box} ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a2d3e;border-radius:10px}
         button{font-family:inherit;cursor:pointer} select,input,textarea{font-family:inherit} @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
-      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:99, padding:"14px 24px", borderRadius:12, fontSize:15, fontWeight:600, background:"rgba(15,23,42,0.95)", color:"#22c55e", border:"1px solid rgba(34,197,94,0.6)", boxShadow:"0 10px 30px rgba(15,23,42,0.6)" }}>{toast}</div>}
+      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:99, padding:"14px 24px", borderRadius:12, fontSize:15, fontWeight:600, background:"#1C1C1E", color:"#30D158", border:"1px solid #30D158", boxShadow:"0 10px 30px rgba(0,0,0,0.8)" }}>{toast}</div>}
 
       {/* SIDEBAR */}
-      <div style={{ display:"flex", flexDirection:"column", width:collapsed?80:340, background:"#050816", borderRight:"1px solid #111827", flexShrink:0, transition:"width 0.25s ease" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:14, padding:"20px", borderBottom:"1px solid #111827" }}>
-          {!collapsed && <><div style={{ width:44, height:44, borderRadius:12, background:"#111827", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, color:"#3b82f6", border:"1px solid #1f2937" }}>◈</div>
+      <div style={{ display:"flex", flexDirection:"column", width:collapsed?80:340, background:"#1C1C1E", borderRight:"1px solid #2C2C2E", flexShrink:0, transition:"width 0.25s ease" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:14, padding:"20px", borderBottom:"1px solid #2C2C2E" }}>
+          {!collapsed && <><div style={{ width:44, height:44, borderRadius:12, background:"#2C2C2E", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, color:"#0A84FF", border:"1px solid #3A3A3C" }}>◈</div>
             <div style={{ flex:1 }}>
               <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
                 <div style={{ fontSize:20, fontWeight:800, letterSpacing:"-0.02em" }}>DSL Tracker</div>
                 <span style={{ fontSize:12, fontWeight:600, color:"#6b7280" }}>v0.3</span>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}><span style={{ fontSize:14, color:"#6b7189" }}>Support Coordination</span>
-                <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:99, background:"rgba(34,197,94,0.16)", color:"#22c55e" }}><span style={{ width:7, height:7, borderRadius:4, background:"#22c55e", display:"inline-block" }}/>Saved</span></div></div></>}
-          <button onClick={() => setCollapsed(!collapsed)} style={{ background:"none", border:"none", color:"#6b7189", padding:8, fontSize:18 }}>{collapsed?"▸":"◂"}</button>
+                <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:99, background:"rgba(48,209,88,0.16)", color:"#30D158" }}><span style={{ width:7, height:7, borderRadius:4, background:"#30D158", display:"inline-block" }}/>Saved</span></div></div></>}
+          <button onClick={() => setCollapsed(!collapsed)} style={{ background:"none", border:"none", color:"#8E8E93", padding:8, fontSize:18 }}>{collapsed?"▸":"◂"}</button>
         </div>
 
         {!collapsed && <>
@@ -339,12 +340,12 @@ export default function App() {
             )}
           </div>
 
-          <div style={{ padding:"12px 20px", borderBottom:"1px solid #111827", display:"flex", gap:10, flexWrap:"wrap" }}>
-            <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(34,197,94,0.18)", color:"#22c55e" }}>✓ {doneN}/{all.length}</span>
-            {urgN>0 && <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(248,113,113,0.20)", color:"#ef4444" }}>⚠ {urgN}</span>}
+          <div style={{ padding:"12px 20px", borderBottom:"1px solid #2C2C2E", display:"flex", gap:10, flexWrap:"wrap" }}>
+            <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(48,209,88,0.18)", color:"#30D158" }}>✓ {doneN}/{all.length}</span>
+            {urgN>0 && <span style={{ fontSize:15, fontWeight:700, padding:"6px 14px", borderRadius:10, background:"rgba(250,17,79,0.20)", color:"#FA114F" }}>⚠ {urgN}</span>}
           </div>
-          <div style={{ padding:"16px 20px", borderBottom:"1px solid #111827" }}>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients..." style={{ width:"100%", fontSize:16, padding:"14px 18px", borderRadius:12, background:"#020617", border:"1px solid #1e293b", color:"#f9fafb", outline:"none" }}/>
+          <div style={{ padding:"16px 20px", borderBottom:"1px solid #2C2C2E" }}>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients..." style={{ width:"100%", fontSize:16, padding:"14px 18px", borderRadius:12, background:"#000000", border:"1px solid #3A3A3C", color:"#FFFFFF", outline:"none" }}/>
             <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
               {["All","Urgent","Overdue","Active"].map(f => (<button key={f} onClick={() => setFilter(f)} style={{ fontSize:14, fontWeight:600, padding:"8px 16px", borderRadius:10, background:filter===f?"rgba(91,141,239,0.15)":"transparent", color:filter===f?"#5b8def":"#6b7189", border:filter===f?"1px solid rgba(91,141,239,0.3)":"1px solid transparent" }}>{f}</button>))}
             </div>
@@ -354,7 +355,7 @@ export default function App() {
                   <button
                     key={name}
                     onClick={() => { setSel(name); setTab("kanban"); }}
-                    style={{ fontSize:12, padding:"4px 10px", borderRadius:999, border:"none", background:"rgba(30,64,175,0.4)", color:"#bfdbfe", fontWeight:500 }}
+                    style={{ fontSize:12, padding:"4px 10px", borderRadius:999, border:"none", background:"rgba(10,132,255,0.30)", color:"#E5F2FF", fontWeight:500 }}
                   >
                     {name.split(" ").slice(0,2).join(" ")}
                   </button>
@@ -369,24 +370,24 @@ export default function App() {
               const overdueN = c.tasks.filter(t=>t.tag==="Overdue" && t.status!=="Done").length;
               const followN = c.tasks.filter(t=>t.status==="Follow-Up Required").length;
               return (
-                <div key={c.name} onClick={() => setSel(c.name)} style={{ padding:"14px 16px", borderRadius:14, marginBottom:4, cursor:"pointer", background:isSel?"rgba(15,23,42,0.95)":"transparent", borderLeft:isSel?"3px solid #3b82f6":"3px solid transparent", transition:"all 0.15s" }}>
+                <div key={c.name} onClick={() => setSel(c.name)} style={{ padding:"14px 16px", borderRadius:14, marginBottom:4, cursor:"pointer", background:isSel?"#2C2C2E":"transparent", borderLeft:isSel?"3px solid #0A84FF":"3px solid transparent", transition:"all 0.15s" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-                    <div style={{ width:44, height:44, borderRadius:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, flexShrink:0, background:hasUrg?"rgba(248,113,113,0.22)":"rgba(37,99,235,0.18)", color:hasUrg?"#ef4444":"#60a5fa" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
+                    <div style={{ width:44, height:44, borderRadius:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, flexShrink:0, background:hasUrg?"rgba(250,17,79,0.25)":"rgba(10,132,255,0.25)", color:hasUrg?"#FA114F":"#0A84FF" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <span style={{ fontSize:16, fontWeight:600, color:isSel?"#f9fafb":"#e5e7eb", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.name}</span>
-                        {hasUrg && <span style={{ fontSize:14, color:"#ef4444" }}>⚠</span>}
+                        <span style={{ fontSize:16, fontWeight:600, color:isSel?"#FFFFFF":"#E5E5EA", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.name}</span>
+                        {hasUrg && <span style={{ fontSize:14, color:"#FA114F" }}>⚠</span>}
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:8 }}>
-                        <div style={{ flex:1, height:6, borderRadius:3, background:"#020617", overflow:"hidden" }}>
-                          <div style={{ height:"100%", borderRadius:3, width:`${pct}%`, background:pct===100?"#22c55e":"#3b82f6", transition:"width 0.3s" }}/>
+                        <div style={{ flex:1, height:6, borderRadius:3, background:"#000000", overflow:"hidden" }}>
+                          <div style={{ height:"100%", borderRadius:3, width:`${pct}%`, background:pct===100?"#30D158":"#0A84FF", transition:"width 0.3s" }}/>
                         </div>
-                        <span style={{ fontSize:14, color:"#6b7280" }}>{dn}/{tot}</span>
+                        <span style={{ fontSize:14, color:"#8E8E93" }}>{dn}/{tot}</span>
                       </div>
                       <div style={{ display:"flex", gap:10, marginTop:6, fontSize:12 }}>
-                        {overdueN>0 && <span style={{ color:"#ef4444" }}>⚠ {overdueN} overdue</span>}
-                        {dn>0 && <span style={{ color:"#22c55e" }}>✓ {dn} done</span>}
-                        {followN>0 && <span style={{ color:"#3b82f6" }}>⏱ {followN} follow‑up</span>}
+                        {overdueN>0 && <span style={{ color:"#FA114F" }}>⚠ {overdueN} overdue</span>}
+                        {dn>0 && <span style={{ color:"#30D158" }}>✓ {dn} done</span>}
+                        {followN>0 && <span style={{ color:"#0A84FF" }}>⏱ {followN} follow‑up</span>}
                       </div>
                     </div>
                   </div>
@@ -394,53 +395,53 @@ export default function App() {
               );
             })}
           </div>
-          <div style={{ padding:"12px 20px", borderTop:"1px solid #111827", display:"flex", flexDirection:"column", gap:8 }}>
-            <button onClick={() => setShowAdd(true)} style={{ width:"100%", padding:"14px 0", borderRadius:12, fontSize:16, fontWeight:600, background:"#1d4ed8", color:"#e5edff", border:"none", boxShadow:"0 8px 24px rgba(37,99,235,0.45)" }}>+ Add Client</button>
+          <div style={{ padding:"12px 20px", borderTop:"1px solid #2C2C2E", display:"flex", flexDirection:"column", gap:8 }}>
+            <button onClick={() => setShowAdd(true)} style={{ width:"100%", padding:"14px 0", borderRadius:12, fontSize:16, fontWeight:600, background:"#0A84FF", color:"#FFFFFF", border:"none", boxShadow:"0 8px 24px rgba(10,132,255,0.55)" }}>+ Add Client</button>
             <div style={{ display:"flex", gap:8 }}>
-              <button onClick={() => { exportJSON(clients); showToast("Exported"); }} style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(34,197,94,0.14)", color:"#22c55e", border:"none" }}>↓ Export</button>
-              <label style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(59,130,246,0.14)", color:"#60a5fa", textAlign:"center", cursor:"pointer" }}>↑ Import<input type="file" accept=".json" onChange={handleImport} style={{ display:"none" }}/></label>
-              <button onClick={resetData} style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(248,113,113,0.12)", color:"#fca5a5", border:"none" }}>↺ Reset</button>
+              <button onClick={() => { exportJSON(clients); showToast("Exported"); }} style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(48,209,88,0.18)", color:"#30D158", border:"none" }}>↓ Export</button>
+              <label style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(10,132,255,0.20)", color:"#0A84FF", textAlign:"center", cursor:"pointer" }}>↑ Import<input type="file" accept=".json" onChange={handleImport} style={{ display:"none" }}/></label>
+              <button onClick={resetData} style={{ flex:1, padding:"10px 0", borderRadius:10, fontSize:13, fontWeight:600, background:"rgba(250,17,79,0.20)", color:"#FA114F", border:"none" }}>↺ Reset</button>
             </div>
           </div>
         </>}
-        {collapsed && <div style={{ flex:1, overflowY:"auto", padding:"12px 0" }}>{filtered.map(c => <div key={c.name} onClick={() => setSel(c.name)} title={c.name} style={{ display:"flex", justifyContent:"center", padding:"8px 0", cursor:"pointer" }}><div style={{ width:48, height:48, borderRadius:24, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, background:c.name===sel?"rgba(37,99,235,0.32)":"rgba(15,23,42,0.9)", color:c.name===sel?"#bfdbfe":"#6b7280", border:c.name===sel?"3px solid #3b82f6":"1px solid #1f2937" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div></div>)}</div>}
+        {collapsed && <div style={{ flex:1, overflowY:"auto", padding:"12px 0" }}>{filtered.map(c => <div key={c.name} onClick={() => setSel(c.name)} title={c.name} style={{ display:"flex", justifyContent:"center", padding:"8px 0", cursor:"pointer" }}><div style={{ width:48, height:48, borderRadius:24, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, background:c.name===sel?"rgba(10,132,255,0.35)":"#1C1C1E", color:c.name===sel?"#FFFFFF":"#8E8E93", border:c.name===sel?"3px solid #0A84FF":"1px solid #3A3A3C" }}>{c.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div></div>)}</div>}
       </div>
 
       {/* MAIN */}
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
         {client ? <>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 32px", background:"#020617", borderBottom:"1px solid #111827", flexWrap:"wrap", gap:12 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 32px", background:"#1C1C1E", borderBottom:"1px solid #2C2C2E", flexWrap:"wrap", gap:12 }}>
             <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-              <div style={{ width:52, height:52, borderRadius:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, background:client.priority==="urgent"?"rgba(251,146,60,0.18)":"rgba(37,99,235,0.22)", color:client.priority==="urgent"?"#fb923c":"#60a5fa" }}>{client.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
-              <div><div style={{ fontSize:22, fontWeight:700 }}>{client.name}</div><div style={{ fontSize:15, color:"#6b7280", marginTop:4, maxWidth:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{client.note}</div></div>
+              <div style={{ width:52, height:52, borderRadius:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, background:client.priority==="urgent"?"rgba(250,17,79,0.25)":"rgba(10,132,255,0.25)", color:client.priority==="urgent"?"#FA114F":"#0A84FF" }}>{client.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
+              <div><div style={{ fontSize:22, fontWeight:700 }}>{client.name}</div><div style={{ fontSize:15, color:"#8E8E93", marginTop:4, maxWidth:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{client.note}</div></div>
             </div>
             <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
-              {client.tags.map(t => { const [bg,clr]=TAG_C[t]||["rgba(31,41,55,0.9)","#9ca3af"]; return <span key={t} style={{ fontSize:13, fontWeight:600, padding:"5px 14px", borderRadius:999, background:bg, color:clr }}>{t}</span>; })}
+              {client.tags.map(t => { const [bg,clr]=TAG_C[t]||["#2C2C2E","#E5E5EA"]; return <span key={t} style={{ fontSize:13, fontWeight:600, padding:"5px 14px", borderRadius:999, background:bg, color:clr }}>{t}</span>; })}
             </div>
           </div>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, padding:"14px 32px", borderBottom:"1px solid #111827", background:"#020617", flexWrap:"wrap" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, padding:"14px 32px", borderBottom:"1px solid #2C2C2E", background:"#000000", flexWrap:"wrap" }}>
             <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
               {[{id:"today",l:"☀ My Day"},{id:"kanban",l:"◫ Board"},{id:"weekly",l:"📋 Weekly Summary"},{id:"summary",l:"⊞ Client Summary"}].map(t => (
-                <button key={t.id} onClick={() => setTab(t.id)} style={{ fontSize:15, fontWeight:600, padding:"9px 18px", borderRadius:999, background:tab===t.id?"rgba(37,99,235,0.24)":"transparent", color:tab===t.id?"#bfdbfe":"#6b7280", border:"none", transition:"all 0.15s" }}>{t.l}</button>
+                <button key={t.id} onClick={() => setTab(t.id)} style={{ fontSize:15, fontWeight:600, padding:"9px 18px", borderRadius:999, background:tab===t.id?"rgba(10,132,255,0.30)":"transparent", color:tab===t.id?"#FFFFFF":"#8E8E93", border:"none", transition:"all 0.15s" }}>{t.l}</button>
               ))}
             </div>
             {tab==="kanban" && (
               <button
                 onClick={() => setAddingTask(true)}
-                style={{ fontSize:14, fontWeight:600, padding:"9px 18px", borderRadius:999, background:"#2563eb", color:"#e5edff", border:"none", boxShadow:"0 4px 16px rgba(37,99,235,0.55)" }}
+                style={{ fontSize:14, fontWeight:600, padding:"9px 18px", borderRadius:999, background:"#0A84FF", color:"#FFFFFF", border:"none", boxShadow:"0 4px 16px rgba(0,0,0,0.8)" }}
               >
                 + New Task
               </button>
             )}
           </div>
-          <div style={{ flex:1, overflow:"hidden", background:"#0b0f19" }}>
+          <div style={{ flex:1, overflow:"hidden", background:"#000000" }}>
             {tab==="today" && <TodayPanel clients={clients} onJumpClient={name => { setSel(name); setTab("kanban"); }}/>}
             {tab==="kanban" && (
               <div style={{ display:"flex", height:"100%" }}>
-                <div style={{ flex:4, minWidth:0 }}>
+                <div style={{ flex:3, minWidth:0 }}>
                   <Kanban client={client} onUpdate={upd} adding={addingTask} setAdding={setAddingTask}/>
                 </div>
-                <div style={{ flex:2, minWidth:320, maxWidth:420, borderLeft:"1px solid #111827", background:"#020617" }}>
+                <div style={{ flex:2, minWidth:360, borderLeft:"1px solid #111827", background:"#020617" }}>
                   <NotesPanel client={client} onUpdate={upd} scratchNotes={scratchNotes} setScratchNotes={setScratchNotes} daySnap={daySnap} allClients={clients}/>
                 </div>
               </div>
