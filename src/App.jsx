@@ -657,51 +657,117 @@ function NotesPanel({ client, onUpdate, scratchNotes, setScratchNotes, daySnap, 
   };
 
   return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 32px", borderBottom:"1px solid #1e2030", flexWrap:"wrap", gap:10 }}>
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:PAL.bgSurface, borderLeft:`1px solid ${PAL.border}` }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 20px", borderBottom:`1px solid ${PAL.border}`, flexWrap:"wrap", gap:8 }}>
         <div style={{ display:"flex", gap:6 }}>
-          <button onClick={()=>setSubTab("scratch")} style={{ fontSize:15, fontWeight:600, padding:"8px 20px", borderRadius:10, background:subTab==="scratch"?"rgba(251,146,60,0.12)":"transparent", color:subTab==="scratch"?"#fb923c":"#6b7189", border:"none" }}>✎ Scratchpad</button>
-          <button onClick={()=>setSubTab("formatted")} style={{ fontSize:15, fontWeight:600, padding:"8px 20px", borderRadius:10, background:subTab==="formatted"?"rgba(167,139,250,0.12)":"transparent", color:subTab==="formatted"?"#a78bfa":"#6b7189", border:"none" }}>✦ Formatted ({(client.aiNotes||[]).length})</button>
+          <button onClick={()=>setSubTab("scratch")} style={{ fontSize:12, fontWeight:500, padding:"6px 10px", borderRadius:6, background:subTab==="scratch"?"rgba(76,194,196,0.12)":"transparent", color:subTab==="scratch"?PAL.teal:PAL.textLow, border:"none" }}>✎ Scratchpad</button>
+          <button onClick={()=>setSubTab("formatted")} style={{ fontSize:12, fontWeight:500, padding:"6px 10px", borderRadius:6, background:subTab==="formatted"?"rgba(237,237,237,0.06)":"transparent", color:subTab==="formatted"?PAL.textHigh:PAL.textLow, border:"none" }}>✦ Formatted ({(client.aiNotes||[]).length})</button>
         </div>
-        {subTab==="scratch" && scratch.trim() && <button onClick={formatWithAI} disabled={loading} style={{ fontSize:15, fontWeight:700, padding:"10px 24px", borderRadius:12, background:"linear-gradient(135deg,#a78bfa,#5b8def)", color:"white", border:"none", opacity:loading?0.5:1, boxShadow:"0 2px 12px rgba(167,139,250,0.3)" }}>{loading?"Formatting...":"✦ AI Format & Save"}</button>}
+        {subTab==="scratch" && scratch.trim() && (
+          <button
+            onClick={formatWithAI}
+            disabled={loading}
+            style={{ fontSize:12, fontWeight:600, padding:"8px 14px", borderRadius:8, background:PAL.teal, color:"#101113", border:"none", opacity:loading?0.5:1 }}
+          >
+            {loading?"Formatting...":"✦ AI Format & Save"}
+          </button>
+        )}
       </div>
       <div style={{ flex:1, overflowY:"auto" }}>
-        {subTab==="scratch" && <div style={{ padding:"24px 32px", height:"100%", display:"flex", flexDirection:"column" }}>
-          {daySnap && clientDiff.length > 0 && <div style={{ marginBottom:16, padding:"14px 18px", borderRadius:12, background:"rgba(52,211,153,0.06)", border:"1px solid rgba(52,211,153,0.15)" }}>
-            <div style={{ fontSize:13, fontWeight:700, color:"#34d399", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.05em" }}>Task changes today — included in AI format</div>
-            <div style={{ fontSize:14, color:"#9ca3b8", lineHeight:1.6 }}>{clientDiff.map((c,i) => <div key={i} style={{ marginBottom:4 }}>
-              {c.type==="status" && <span>→ <span style={{color:"#e8eaf0"}}>{c.text.substring(0,60)}</span>: {c.from} → <span style={{color:"#34d399"}}>{c.to}</span></span>}
-              {c.type==="outcome" && <span>→ Outcome recorded for <span style={{color:"#e8eaf0"}}>{c.text.substring(0,40)}</span></span>}
-              {c.type==="subtasks" && <span>→ {c.completed} subtask(s) done on <span style={{color:"#e8eaf0"}}>{c.text.substring(0,40)}</span></span>}
-              {c.type==="added" && <span>+ New task: <span style={{color:"#e8eaf0"}}>{c.text.substring(0,60)}</span></span>}
-              {c.type==="removed" && <span>✕ Removed: <span style={{color:"#e8eaf0"}}>{c.text.substring(0,60)}</span></span>}
-            </div>)}</div>
-          </div>}
-          {daySnap && clientDiff.length===0 && <div style={{ marginBottom:16, padding:"12px 18px", borderRadius:12, background:"rgba(107,113,137,0.06)", border:"1px solid rgba(107,113,137,0.1)" }}><span style={{ fontSize:13, color:"#6b7189" }}>Day active — no task changes for {client.name.split(" ")[0]} yet</span></div>}
-          <textarea value={scratch} onChange={e=>updateScratch(e.target.value)} placeholder={`Dump your notes for ${client.name.split(" ")[0]} here...\n\nAnything goes — rough notes, call logs, thoughts.\nWhen ready, hit "AI Format & Save".`} style={{ flex:1, width:"100%", fontSize:16, padding:"20px 22px", borderRadius:16, background:"#161822", border:"1px solid #1e2030", color:"#e8eaf0", outline:"none", resize:"none", lineHeight:1.7, fontFamily:"inherit", minHeight:200 }}/>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12 }}>
-            <span style={{ fontSize:13, color:"#353849" }}>{scratch.trim() ? `${scratch.trim().split(/\n/).filter(l=>l.trim()).length} lines · auto-saved` : "Start typing — notes save automatically"}</span>
-            {scratch.trim() && <button onClick={()=>updateScratch("")} style={{ fontSize:13, fontWeight:600, padding:"6px 16px", borderRadius:8, background:"rgba(248,113,113,0.08)", color:"#f87171", border:"none" }}>Clear</button>}
-          </div>
-        </div>}
-        {subTab==="formatted" && <div style={{ padding:"24px 32px" }}>
-          {(!client.aiNotes?.length) ? <div style={{ textAlign:"center", padding:"64px 0", color:"#4a4f65" }}><div style={{ fontSize:48, marginBottom:16, opacity:0.3 }}>✦</div><div style={{ fontSize:18, fontWeight:500 }}>No formatted notes yet</div><div style={{ fontSize:15, color:"#353849", marginTop:8 }}>Write notes in Scratchpad, then hit AI Format</div></div>
-          : [...(client.aiNotes||[])].reverse().map(n => (
-            <div key={n.id} style={{ borderRadius:16, padding:24, marginBottom:16, background:"#161822", border:"1px solid #1e2030" }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <span style={{ fontSize:14, fontWeight:600, color:"#6b7189" }}>{new Date(n.timestamp).toLocaleString("en-AU",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</span>
-                  {n.hasDiff && <span style={{ fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:99, background:"rgba(52,211,153,0.1)", color:"#34d399" }}>incl. task changes</span>}
-                </div>
-                <div style={{ display:"flex", gap:10 }}>
-                  <span onClick={()=>{copyText(n.formatted);setCopiedId(n.id);setTimeout(()=>setCopiedId(null),1500)}} style={{ cursor:"pointer", color:copiedId===n.id?"#34d399":"#6b7189", fontSize:15, fontWeight:600 }}>{copiedId===n.id?"✓ Copied":"⎘ Copy"}</span>
-                  <span onClick={()=>onUpdate({...client,aiNotes:client.aiNotes.filter(x=>x.id!==n.id)})} style={{ cursor:"pointer", color:"#353849", fontSize:16 }}>✕</span>
+        {subTab==="scratch" && (
+          <div style={{ padding:"16px 20px", height:"100%", display:"flex", flexDirection:"column", gap:10 }}>
+            {daySnap && clientDiff.length > 0 && (
+              <div style={{ padding:"10px 12px", borderRadius:8, background:"rgba(128,203,196,0.12)", border:`1px solid ${PAL.border}` }}>
+                <div style={{ fontSize:11, fontWeight:600, color:PAL.teal, marginBottom:4, textTransform:"uppercase", letterSpacing:"0.05em" }}>Task changes today</div>
+                <div style={{ fontSize:12, color:PAL.textLow, lineHeight:1.6 }}>
+                  {clientDiff.map((c,i) => (
+                    <div key={i} style={{ marginBottom:2 }}>
+                      {c.type==="status" && <>→ <span style={{color:PAL.textMed}}>{c.text.substring(0,60)}</span>: {c.from} → <span style={{color:"#4ADE80"}}>{c.to}</span></>}
+                      {c.type==="outcome" && <>→ Outcome for <span style={{color:PAL.textMed}}>{c.text.substring(0,40)}</span></>}
+                      {c.type==="subtasks" && <>→ {c.completed} subtask(s) on <span style={{color:PAL.textMed}}>{c.text.substring(0,40)}</span></>}
+                      {c.type==="added" && <>+ New: <span style={{color:PAL.textMed}}>{c.text.substring(0,60)}</span></>}
+                      {c.type==="removed" && <>✕ Removed: <span style={{color:PAL.textMed}}>{c.text.substring(0,60)}</span></>}
+                    </div>
+                  ))}
                 </div>
               </div>
-              <pre style={{ fontSize:15, lineHeight:1.65, whiteSpace:"pre-wrap", color:"#9ca3b8", fontFamily:"inherit", margin:0 }}>{n.formatted}</pre>
+            )}
+            <textarea
+              value={scratch}
+              onChange={e=>updateScratch(e.target.value)}
+              placeholder={`Notes for ${client.name.split(" ")[0]}...\n\nRough notes, call logs, thoughts.\nThen click "AI Format & Save".`}
+              style={{
+                flex:1,
+                width:"100%",
+                fontSize:13,
+                padding:"14px 16px",
+                borderRadius:10,
+                background:PAL.bgCard,
+                border:`1px solid ${PAL.border}`,
+                color:PAL.textMed,
+                outline:"none",
+                resize:"none",
+                lineHeight:1.6,
+                fontFamily:"inherit",
+                minHeight:180,
+              }}
+            />
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ fontSize:11, color:PAL.textLow }}>
+                {scratch.trim() ? `${scratch.trim().split(/\n/).filter(l=>l.trim()).length} lines · auto‑saved` : "Start typing — notes save automatically"}
+              </span>
+              {scratch.trim() && (
+                <button
+                  onClick={()=>updateScratch("")}
+                  style={{ fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:6, background:"rgba(239,68,68,0.14)", color:"#F87171", border:"1px solid rgba(239,68,68,0.22)" }}
+                >
+                  Clear
+                </button>
+              )}
             </div>
-          ))}
-        </div>}
+          </div>
+        )}
+        {subTab==="formatted" && (
+          <div style={{ padding:"16px 20px" }}>
+            {(!client.aiNotes?.length) ? (
+              <div style={{ textAlign:"center", padding:"40px 0", color:PAL.textLow }}>
+                <div style={{ fontSize:32, marginBottom:10, opacity:0.3 }}>✦</div>
+                <div style={{ fontSize:14, fontWeight:500, color:PAL.textMed }}>No formatted notes yet</div>
+                <div style={{ fontSize:12, color:PAL.textLow, marginTop:4 }}>Write notes, then use AI Format & Save</div>
+              </div>
+            ) : [...(client.aiNotes||[])].reverse().map(n => (
+              <div key={n.id} style={{ borderRadius:10, padding:16, marginBottom:12, background:PAL.bgCard, border:`1px solid ${PAL.border}` }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ fontSize:12, fontWeight:500, color:PAL.textLow }}>
+                      {new Date(n.timestamp).toLocaleString("en-AU",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}
+                    </span>
+                    {n.hasDiff && (
+                      <span style={{ fontSize:11, fontWeight:500, padding:"2px 8px", borderRadius:6, background:"rgba(128,203,196,0.12)", color:PAL.teal, border:`1px solid ${PAL.border}` }}>
+                        incl. task changes
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display:"flex", gap:10 }}>
+                    <span
+                      onClick={()=>{copyText(n.formatted);setCopiedId(n.id);setTimeout(()=>setCopiedId(null),1500)}}
+                      style={{ cursor:"pointer", color:copiedId===n.id?PAL.teal:PAL.textLow, fontSize:12, fontWeight:500 }}
+                    >
+                      {copiedId===n.id?"✓ Copied":"⎘ Copy"}
+                    </span>
+                    <span
+                      onClick={()=>onUpdate({...client,aiNotes:client.aiNotes.filter(x=>x.id!==n.id)})}
+                      style={{ cursor:"pointer", color:PAL.textDisabled, fontSize:14 }}
+                    >
+                      ✕
+                    </span>
+                  </div>
+                </div>
+                <pre style={{ fontSize:12, lineHeight:1.6, whiteSpace:"pre-wrap", color:PAL.textMed, fontFamily:"inherit", margin:0 }}>{n.formatted}</pre>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
