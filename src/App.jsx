@@ -445,7 +445,7 @@ export default function App() {
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 32px", background:PAL.bgSurface, borderBottom:`1px solid ${PAL.border}`, flexWrap:"wrap", gap:12 }}>
             <div style={{ display:"flex", alignItems:"center", gap:16 }}>
               <div style={{ width:52, height:52, borderRadius:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, background:PAL.bgCard, color:PAL.textHigh, border:`1px solid ${PAL.border}` }}>{client.name.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
-              <div><div style={{ fontSize:22, fontWeight:700, color:PAL.textHigh }}>{client.name}</div><div style={{ fontSize:13, color:PAL.textLow, marginTop:4, maxWidth:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{client.note}</div></div>
+              <div style={{ fontSize:22, fontWeight:700, color:PAL.textHigh }}>{client.name}</div>
             </div>
             <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
               {client.tags.map(t => {
