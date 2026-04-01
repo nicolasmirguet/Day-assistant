@@ -416,7 +416,7 @@ export default function App() {
           </div>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, padding:"14px 32px", borderBottom:"1px solid #111827", background:"#020617", flexWrap:"wrap" }}>
             <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-              {[{id:"today",l:"☀ My Day"},{id:"kanban",l:"◫ Tasks"},{id:"weekly",l:"📋 Weekly Summary"},{id:"summary",l:"⊞ Client Summary"}].map(t => (
+              {[{id:"today",l:"☀ My Day"},{id:"kanban",l:"◫ Board"},{id:"notes",l:"✎ Notes"},{id:"weekly",l:"📋 Weekly Summary"},{id:"summary",l:"⊞ Client Summary"}].map(t => (
                 <button key={t.id} onClick={() => setTab(t.id)} style={{ fontSize:15, fontWeight:600, padding:"9px 18px", borderRadius:999, background:tab===t.id?"rgba(37,99,235,0.24)":"transparent", color:tab===t.id?"#bfdbfe":"#6b7280", border:"none", transition:"all 0.15s" }}>{t.l}</button>
               ))}
             </div>
@@ -431,16 +431,8 @@ export default function App() {
           </div>
           <div style={{ flex:1, overflow:"hidden", background:"#0b0f19" }}>
             {tab==="today" && <TodayPanel clients={clients} onJumpClient={name => { setSel(name); setTab("kanban"); }}/>}
-            {tab==="kanban" && (
-              <div style={{ display:"flex", height:"100%" }}>
-                <div style={{ flex:3, minWidth:0 }}>
-                  <Kanban client={client} onUpdate={upd} adding={addingTask} setAdding={setAddingTask}/>
-                </div>
-                <div style={{ width:360, borderLeft:"1px solid #111827", background:"#020617" }}>
-                  <NotesPanel client={client} onUpdate={upd} scratchNotes={scratchNotes} setScratchNotes={setScratchNotes} daySnap={daySnap} allClients={clients}/>
-                </div>
-              </div>
-            )}
+            {tab==="kanban" && <Kanban client={client} onUpdate={upd} adding={addingTask} setAdding={setAddingTask}/>}
+            {tab==="notes" && <NotesPanel client={client} onUpdate={upd} scratchNotes={scratchNotes} setScratchNotes={setScratchNotes} daySnap={daySnap} allClients={clients}/>}
             {tab==="weekly" && <WeeklyPanel clients={clients}/>}
             {tab==="summary" && <SummaryPanel client={client}/>}
           </div>
